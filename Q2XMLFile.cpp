@@ -105,7 +105,7 @@ void Q2XMLFile::reset()
 //return the channel with given prod and cons 
 Channel * Q2XMLFile::getChannel(string prod, string cons) const
 {
-	unsigned long int unma, bytes, values;
+	unsigned long long unma, bytes, values;
 	
 	ticpp::Iterator< ticpp::Element > channelItr(m_namespace + "channel");
 	for(channelItr = channelItr.begin(m_qdufinger); channelItr != channelItr.end(); channelItr++)
@@ -137,7 +137,7 @@ Channel * Q2XMLFile::getChannel(string prod, string cons) const
 
 void Q2XMLFile::printAllChValues() const
 {
-	unsigned long int unma, bytes, values;
+	unsigned long long unma, bytes, values;
 	
 	ticpp::Iterator< ticpp::Element > channelItr(m_namespace + "channel");
 	for(channelItr = channelItr.begin(m_qdufinger); channelItr != channelItr.end(); channelItr++)

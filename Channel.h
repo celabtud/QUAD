@@ -7,7 +7,6 @@
 * channel between a producer and consumer.
 * 
 */
-
 #ifndef CHANNEL_H_
 #define CHANNEL_H_
 
@@ -23,24 +22,24 @@ class Channel
 private:
 		string producer;
 		string consumer;
-		unsigned long UnMA;
-		unsigned long Bytes;
-		unsigned long Values;
+		unsigned long long UnMA;
+		unsigned long long Bytes;
+		unsigned long long Values;
 		
 public:
 	Channel(){;}
-	Channel(string p, string c, unsigned long unma, unsigned long bytes, unsigned long vals);
+	Channel(string p, string c, unsigned long long unma, unsigned long long bytes, unsigned long long vals);
 	void setProducer(string prod){producer = prod;}
 	string getProducer(){return producer;}
 	void setConsumer(string cons){consumer = cons;}
 	string getConsumer(){return consumer;}
-	void setUnMA(unsigned long int unma) {UnMA = unma;}
-	unsigned long int getUnMA() {return UnMA;}
-	void setBytes(unsigned long int bytes) { Bytes = bytes;}
-	unsigned long int getBytes(){return Bytes;}
-	void setValues(unsigned long int values){Values = values;}
+	void setUnMA(unsigned long long unma) {UnMA = unma;}
+	unsigned long long getUnMA() {return UnMA;}
+	void setBytes(unsigned long long bytes) { Bytes = bytes;}
+	unsigned long long getBytes(){return Bytes;}
+	void setValues(unsigned long long values){Values = values;}
 	unsigned long int getValues() {return Values;}
-	void setChannel(string p, string c, unsigned long unma, unsigned long bytes, unsigned long vals);	
+	void setChannel(string p, string c, unsigned long long unma, unsigned long long bytes, unsigned long long vals);	
 	void printChannel();
 	~Channel(){;}
 };

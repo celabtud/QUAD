@@ -5,7 +5,6 @@
 *
 */ 
 
-
 // when a monitor file is provided, a list of communicating functions with each kernel is extracted from the profile data and stored
 // separately for each function in the monitor list in two modes (In one the kernel is acting as a producer, in the other, as a consumer.
 // the names of the output text files are <kernel_(p).txt> and <kernel_(c).txt>
@@ -122,6 +121,7 @@ VOID EnterFC(char *name,bool flag)
 	if (Uncommon_Functions_Filter)
 	{
 		if	(
+			//commented the following as the functions in libraries were needed (e.g. in KLT)
 			name[0]=='_' ||
 			name[0]=='?' ||
 			!strcmp(name,"GetPdbDll") || 
@@ -143,7 +143,15 @@ VOID EnterFC(char *name,bool flag)
 	#else
 	if (Uncommon_Functions_Filter)
 	{
-		if(name[0]=='_' || name[0]=='?' || !strcmp(name,"call_gmon_start") || !strcmp(name,"frame_dummy") ) 
+		if  (
+			//commented the following as the functions in libraries were needed (e.g. in KLT)
+			name[0]=='_' || 
+			name[0]=='?' || 
+			name[0]=='.' ||
+			!strcmp(name,"call_gmon_start") || 
+			!strcmp(name,"frame_dummy") 
+			) 
+			
 			return;
 	}
 	#endif
@@ -183,7 +191,13 @@ VOID EnterFC_EXTERNAL_OK(char *name)
 	#else
 	if (Uncommon_Functions_Filter)
 	{
-		if(name[0]=='_' || name[0]=='?' ||!strcmp(name,"call_gmon_start") || !strcmp(name,"frame_dummy")) 
+ 		if(
+			name[0]=='_' || 
+			name[0]=='?' ||
+			name[0]=='.' ||
+			!strcmp(name,"call_gmon_start") || 
+			!strcmp(name,"frame_dummy")
+			) 
 			return;
 	}
 	#endif
@@ -256,6 +270,7 @@ VOID Fini(INT32 code, VOID *v)
     CreateDSGraphFile();
     if(Monitor_ON)
 	    CreateTotalStatFile();
+	
     cerr << "done!" << endl;
 }
 

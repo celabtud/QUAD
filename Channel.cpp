@@ -16,7 +16,7 @@
 
 using namespace std;
 
-Channel::Channel(string p, string c, unsigned long unma, unsigned long bytes, unsigned long vals)
+Channel::Channel(string p, string c, unsigned long long unma, unsigned long long bytes, unsigned long long vals)
 {
 	producer = p;
 	consumer = c;
@@ -25,7 +25,7 @@ Channel::Channel(string p, string c, unsigned long unma, unsigned long bytes, un
 	Values = vals;
 }
 
-void Channel::setChannel(string p, string c, unsigned long unma, unsigned long bytes, unsigned long vals)
+void Channel::setChannel(string p, string c, unsigned long long unma, unsigned long long bytes, unsigned long long vals)
 {
 	setProducer(p);
 	setConsumer(c);

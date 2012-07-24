@@ -3,7 +3,7 @@
 #include "Channel.h"
 #include "Exception.h"
 #include "Q2XMLFile.h"
-#include"RenewalFlags.h"
+#include"RenewalFlags.cpp"
 
 #define max(a,b) ((a)>(b)?(a):(b))
 #define min(a,b) ((a)<(b)?(a):(b))
@@ -16,7 +16,7 @@ addr_t MaxLabel=0;
 struct trieNode 
 {
     struct trieNode * list[16];
-	char RenewalFlags[64];
+ 	FNodeList * RenewalFlags;
 } 
 *trieRoot=NULL,*graphRoot=NULL,*uflist=NULL;
 
@@ -35,8 +35,8 @@ struct AddressSplitter
 // structure definition to keep track of producer->consumer Bindings! (number of bytes, the memory addresses used for exchange ...)
 typedef struct 
 {
-	unsigned long int data_exchange;
-	unsigned long int UniqueValues;
+	unsigned long long data_exchange;
+	unsigned long long UniqueValues;
 	ADDRINT producer;
 	ADDRINT consumer;
 	set<ADDRINT>* UniqueMemCells;
@@ -248,11 +248,10 @@ void recTrieTraverse(struct trieNode* current,int level)
 					fprintf(gfp,"\"%08x\" [label=\"%s\"];\n", (unsigned int)temp->consumer , consName.c_str());
 
 				color = (int) (  1023 *  log((double)(temp->data_exchange)) / log((double)MaxLabel)  ); 
-				fprintf(gfp,"\"%08x\" -> \"%08x\"  [label=\"%lu bytes (%lu UnMA %lu UnVals)\" color=\"#%02x%02x%02x\"]\n",(unsigned int)temp->producer,(unsigned int)temp->consumer,temp->data_exchange,(unsigned long int)temp->UniqueMemCells->size(),temp->UniqueValues, max(0,color-768),min(255,512-abs(color-512)), max(0,min(255,512-color)));
-			
+				//fprintf(gfp,"\"%08x\" -> \"%08x\"  [label=\"%llu Bytes (%lu UnMAs %llu UnDVs)\" color=\"#%02x%02x%02x\"]\n",(unsigned int)temp->producer,(unsigned int)temp->consumer,temp->data_exchange,(unsigned long int)temp->UniqueMemCells->size(),temp->UniqueValues, max(0,color-768),min(255,512-abs(color-512)), max(0,min(255,512-color)));
+				fprintf(gfp,"\"%08x\" -> \"%08x\"  [label=\"%llu Bytes \\n %lu UnMAs \\n %llu UnDVs\" color=\"#%02x%02x%02x\"]\n",(unsigned int)temp->producer,(unsigned int)temp->consumer,temp->data_exchange,(unsigned long int)temp->UniqueMemCells->size(),temp->UniqueValues, max(0,color-768),min(255,512-abs(color-512)), max(0,min(255,512-color)));			
+				
 				//Put_Binding_in_XML_file(prodName,consName,temp->data_exchange,temp->UniqueMemCells->size());
-/*				Channel * ch = new Channel(prodName,consName,temp->UniqueMemCells->size(),temp->data_exchange,0);
-				q2xml->insertChannel(ch);*/
 				q2xml->insertChannel(new Channel(prodName,consName,temp->UniqueMemCells->size(),temp->data_exchange,temp->UniqueValues));
 
 				// do we need the total statistics file always or not? ... should be modified if we need this in any case... 
@@ -287,7 +286,7 @@ int CreateDSGraphFile()
    if(!(uflist=(struct trieNode*)malloc(sizeof(struct trieNode)) ) ) return 2; /* memory allocation failed*/
    else
         for (i=0;i<16;i++) 
-                    uflist->list[i]=NULL;
+			uflist->list[i]=NULL;
 
    cerr << "\nwriting QDU graph preamble..." << endl;
 
@@ -303,6 +302,7 @@ int CreateDSGraphFile()
    
    cerr << "writing <QUAD> in the XML file ...\n";
    
+   
 	try
 	{
 		q2xml->save();
@@ -313,12 +313,13 @@ int CreateDSGraphFile()
 		cerr << ex.what();
 	}
    
+   
    delete q2xml;   
    fclose(gfp);	
    return 0;
 }                                               
 //------------------------------------------------------------------------------------------
-int RecordCommunicationInDSGraph(ADDRINT producer, ADDRINT consumer, ADDRINT addy, struct trieNode * currentLPold)
+int RecordCommunicationInDSGraph(ADDRINT producer, ADDRINT consumer, ADDRINT locAddr, struct trieNode * currentLPold)
 {
 	int currentLevel=0;
 	Binding* tempptr;
@@ -394,31 +395,30 @@ int RecordCommunicationInDSGraph(ADDRINT producer, ADDRINT consumer, ADDRINT add
 	tempptr=(Binding*) ( currentLP->list[addressArray[currentLevel]] );
 	tempptr->data_exchange=tempptr->data_exchange+1;
 	
-	// cerr<<"CONSMR2 = "<<(int)consumer<<"  Flag = "<<(int)(currentLPold->RenewalFlags[(int)consumer])<<endl;
-	if(currentLPold->RenewalFlags[(int)consumer] == 1)
-	{
-		tempptr->UniqueValues = tempptr->UniqueValues + 1;
-		currentLPold->RenewalFlags[(int)consumer] = 0 ;
-	}
+	//make the status of this location as OLD by ClearFlag() for this consumer. 
+	//A true will be returned if this value is fresh and now it will be set to old
+	//A false will be returned if this value is already old (read) and is being re-read
+ 	if(currentLPold->RenewalFlags->ClearFlag(consumer))
+ 		tempptr->UniqueValues = tempptr->UniqueValues + 1;
 
 	// only needed for graph visualization coloring!
 	if (tempptr->data_exchange > MaxLabel) 
 		MaxLabel=tempptr->data_exchange; 
 	
-	tempptr->UniqueMemCells->insert(addy);
+	tempptr->UniqueMemCells->insert(locAddr);
 
 	//********* what to do if insertion is not successful, memory problems !!!!!!!!!!!!
 	return 0; /* successful recording */
 }
 //------------------------------------------------------------------------------------------
-int RecordMemoryAccess(ADDRINT addy, ADDRINT func,bool writeFlag)
+int RecordMemoryAccess(ADDRINT locAddr, ADDRINT func,bool writeFlag)
 {
 	int currentLevel=0;
 	int i,retv;
-	struct trieNode* currentLP;
+	struct trieNode* currentLP; //current level pointer
 	
 	unsigned int addressArray[8];	
-	struct AddressSplitter* ASP= (struct AddressSplitter *)&addy;
+	struct AddressSplitter* ASP= (struct AddressSplitter *)&locAddr;
 	addressArray[0]=ASP->h0;
 	addressArray[1]=ASP->h1;
 	addressArray[2]=ASP->h2;
@@ -458,20 +458,23 @@ int RecordMemoryAccess(ADDRINT addy, ADDRINT func,bool writeFlag)
 		if(!(currentLP->list[addressArray[currentLevel]]=(struct trieNode*)malloc(sizeof(struct trieNode)) ) ) //ADDRINT
 			return 1; /* memory allocation failed*/
 		else 
+		{
 			*((ADDRINT*) (currentLP->list[addressArray[currentLevel]]) )=0; /* no write access has been recorded yet!!! */
+ 			currentLP->RenewalFlags = new FNodeList(); //RenewalFlags for Unique value computations
+		}
 	}           
 	if (writeFlag)
 	{
 		*((ADDRINT*) (currentLP->list[addressArray[currentLevel]])  )=func;  /* only record the last function's write to a memory location?!! */
 		
-		//Set the RenewalFlags for all the existing consumers of this location
-		for(int i =0; i < 64; i++)
-			currentLP->RenewalFlags[i] = 1; //written and its new value, has not been read yet
+		//As this lovation is just written so ReNew the flags for this lovation for all the existing consumers of this location
+ 		currentLP->RenewalFlags->SetFlags();
 	}
 	else 
 	{
-		/* producer -> consumer , and the address used for making this binding! */
-		retv=RecordCommunicationInDSGraph(*((ADDRINT*) (currentLP->list[addressArray[currentLevel]]) ), func, addy, currentLP); 
+		/* producer , consumer , address used for making this binding! , location in the tree */
+		retv=RecordCommunicationInDSGraph(*((ADDRINT*) (currentLP->list[addressArray[currentLevel]]) ), func, locAddr, currentLP); 
+		//DS = Data Structure Graph
 		if (retv) return 1; /* memory exhausted */
 	}
 	return 0; /* successful trace */
