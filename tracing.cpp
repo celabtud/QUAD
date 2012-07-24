@@ -1,80 +1,18 @@
-/*
-
-QUADcore v0.4.3
-final revision January 19th, 2011
-
-This tool is part of QUAD Toolset
-http://sourceforge.net/projects/quadtoolset
-
-Copyright © 2008-2011 Arash Ostadzadeh (ostadzadeh@gmail.com)
-http://ce.et.tudelft.nl/~arash/
-
-
-This file is part of QUADcore.
-
-QUADcore is free software: you can redistribute it and/or modify 
-it under the terms of the GNU Lesser General Public License as 
-published by the Free Software Foundation, either version 3 of 
-the License, or (at your option) any later version.
-
-QUADcore is distributed in the hope that it will be useful, but 
-WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
-or FITNESS FOR A PARTICULAR PURPOSE.  
-
-See the GNU Lesser General Public License for more details. You should have 
-received a copy of the GNU Lesser General Public License along with QUADcore.
-If not, see <http://www.gnu.org/licenses/>.
-
---------------
-<LEGAL NOTICE>
---------------
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are
-met:
-
-Redistributions of source code must retain the above copyright notice,
-this list of conditions and the following disclaimer.  Redistributions
-in binary form must reproduce the above copyright notice, this list of
-conditions and the following disclaimer in the documentation and/or
-other materials provided with the distribution. The names of the contributors 
-must be retained to endorse or promote products derived from this software.
- 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL ITS CONTRIBUTORS 
-BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
-SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
-INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER 
-IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
-ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF 
-THE POSSIBILITY OF SUCH DAMAGE.
-*/
-
-
-//==============================================================================
-/* tracing.cpp: 
- * This file contains the main memory access tracing routines for the QUADcore 
- * tool which detects the actual data dependencies between the functions in a 
- * program.
- *
- *  Author: Arash Ostadzadeh
- *  Lastly revised on 19-01-2011
-*/
-//==============================================================================
-
+// final revision Jan 19th, 2011
 
 #include "tracing.h"
+
+#include "Channel.h"
+#include "Exception.h"
+#include "Q2XMLFile.h"
 
 #define max(a,b) ((a)>(b)?(a):(b))
 #define min(a,b) ((a)<(b)?(a):(b))
 
-
 typedef ADDRINT addr_t;
 FILE* gfp,*ufa;
 bool First_Rec_in_XML = true;
-TiXmlNode* Put_QUAD_here=NULL;
+//TiXmlNode* Put_QUAD_here=NULL;
 
 addr_t MaxLabel=0;
 
@@ -104,48 +42,6 @@ typedef struct
 } Binding;
 
 //------------------------------------------------------------------------------------------
-void Put_Binding_in_XML_file(string producer,string consumer,unsigned long int bytes,unsigned long int u_m_a)
-{
-  if (First_Rec_in_XML)  // check to make sure <PROFILE> exists and create the <QUAD> element...
-  {	  
-  	First_Rec_in_XML = false;
-  	
-	TiXmlElement* root = xmldoc.RootElement();
-	if (!root) 
-	  {
-		   cerr<<"Error writing <BINDING> elements in XML file...\n";
-		   return;
-	  }
-  	
-    TiXmlNode* Profile_element=root->FirstChildElement( "PROFILE" );
-    if (!Profile_element)
-    {
-    	TiXmlElement profile_tag("PROFILE");
-    	Profile_element=root->InsertEndChild(profile_tag);
-    }
-
-    TiXmlElement QUAD_tag("QUAD");
-    Put_QUAD_here=Profile_element->InsertEndChild(QUAD_tag);
-  }
-
-  char buffer1 [20],buffer2[20];
-  sprintf(buffer1,"%lu", bytes);
-  sprintf(buffer2,"%lu", u_m_a);
-  	  
-  TiXmlElement BINDING_tag("BINDING"),PRODUCER_tag("PRODUCER"),CONSUMER_tag("CONSUMER"),DATA_TRANSFER_tag("DATA_TRANSFER"),UMA_tag("UMA");
-  TiXmlText pro_text(producer),con_text(consumer),data_transfer_text(buffer1),uma_text(buffer2);
-
-  TiXmlNode* Current_binding; 
-  
-  Current_binding=Put_QUAD_here->InsertEndChild(BINDING_tag);
-  (Current_binding->InsertEndChild(PRODUCER_tag))->InsertEndChild(pro_text);
-  (Current_binding->InsertEndChild(CONSUMER_tag))->InsertEndChild(con_text);
-  (Current_binding->InsertEndChild(DATA_TRANSFER_tag))->InsertEndChild(data_transfer_text);
-  (Current_binding->InsertEndChild(UMA_tag))->InsertEndChild(uma_text);
-  
-  if (xmldoc.Error())	
-  	cerr << xmldoc.ErrorDesc() << endl ;
-}
 
 void Update_total_statistics(string producer,string consumer,unsigned long int bytes,
 			     unsigned long int u_m_a,bool p_f,bool c_f)
@@ -364,7 +260,9 @@ void recTrieTraverse(struct trieNode* current,int level)
 			color = (int) (  1023 *  log((double)(temp->data_exchange)) / log((double)MaxLabel)  ); 
 			fprintf(gfp,"\"%08x\" -> \"%08x\"  [label=\"%lu bytes (%lu UMA)\" color=\"#%02x%02x%02x\"]\n",(unsigned int)temp->producer,(unsigned int)temp->consumer,temp->data_exchange,(unsigned long int)temp->UniqueMemCells->size(), max(0,color-768),min(255,512-abs(color-512)), max(0,min(255,512-color)));
 			
-			Put_Binding_in_XML_file(name2,name3,temp->data_exchange,temp->UniqueMemCells->size());
+			//Put_Binding_in_XML_file(name2,name3,temp->data_exchange,temp->UniqueMemCells->size());
+			Channel * ch = new Channel(name2,name3,temp->UniqueMemCells->size(),temp->data_exchange,0);
+			q2xml->insertChannel(ch);
 			
 			if (Monitor_ON)  // do we need the total statistics file always or not? ... should be modified if we need this in any case... do not forget to make also the relevant modifications in the monitor list input file processing ... this can also be moved up in the previous condition if we need output file only when monitor list is specified!
 			
@@ -415,8 +313,17 @@ int CreateDSGraphFile()
    
    cerr << "writing <QUAD> in the XML file ...\n";
    
-   if(!xmldoc.SaveFile()) cerr << "Error occurred in XML file update... \n";
+	try
+	{
+		q2xml->save();
+	}
+	catch (ticpp::Exception& ex)
+	{
+		cerr << "Error occurred while saving XML file ... \n";
+		cerr << ex.what();
+	}
    
+   delete q2xml;   
    fclose(gfp);	
    return 0;
 }                                               

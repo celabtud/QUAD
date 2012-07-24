@@ -1,68 +1,9 @@
 /*
-
-QUADcore v0.4.3
-final revision January 19th, 2011
-
-This tool is part of QUAD Toolset
-http://sourceforge.net/projects/quadtoolset
-
-Copyright © 2008-2011 Arash Ostadzadeh (ostadzadeh@gmail.com)
-http://ce.et.tudelft.nl/~arash/
-
-
-This file is part of QUADcore.
-
-QUADcore is free software: you can redistribute it and/or modify 
-it under the terms of the GNU Lesser General Public License as 
-published by the Free Software Foundation, either version 3 of 
-the License, or (at your option) any later version.
-
-QUADcore is distributed in the hope that it will be useful, but 
-WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
-or FITNESS FOR A PARTICULAR PURPOSE.  
-
-See the GNU Lesser General Public License for more details. You should have 
-received a copy of the GNU Lesser General Public License along with QUADcore.
-If not, see <http://www.gnu.org/licenses/>.
-
---------------
-<LEGAL NOTICE>
---------------
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are
-met:
-
-Redistributions of source code must retain the above copyright notice,
-this list of conditions and the following disclaimer.  Redistributions
-in binary form must reproduce the above copyright notice, this list of
-conditions and the following disclaimer in the documentation and/or
-other materials provided with the distribution. The names of the contributors 
-must be retained to endorse or promote products derived from this software.
- 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL ITS CONTRIBUTORS 
-BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
-SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
-INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER 
-IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
-ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF 
-THE POSSIBILITY OF SUCH DAMAGE.
-*/
-
-
-//==============================================================================
-/* QUADcore.cpp: 
- * This file contains the main routines for the QUAD core tool which detects the 
- * actual data dependencies between the functions in a program.
+ * QUAD.cpp 
  *
- *  Authors: Arash Ostadzadeh
- *           Roel Meeuws
- *  Lastly revised on 19-01-2011
-*/
-//==============================================================================
+ * Authour : S. Arash Ostadzadeh (ostadzadeh@gmail.com)
+ *
+ */ 
 
 
 // when a monitor file is provided, a list of communicating functions with each kernel is extracted from the profile data and stored
@@ -81,28 +22,16 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <set>
 #include <map>
 
-// I am using STL for String manipulations ....
-#define TIXML_USE_STL
+#include "Channel.h"
+#include "Exception.h"
+#include "Q2XMLFile.h"
+
 //----------------------------------------------------------------------
-
-#ifdef TIXML_USE_STL
-	#include <iostream>
-	#include <sstream>
-	using namespace std;
-#else
-	#include <stdio.h>
-#endif
-
 #if defined( WIN32 ) && defined( TUNE )
 	#include <crtdbg.h>
 	_CrtMemState startMemState;
 	_CrtMemState endMemState;
 #endif
-
-#include "tinyxml.cpp"
-#include "tinyxmlerror.cpp"
-#include "tinyxmlparser.cpp"
-
 
 #ifdef WIN32
 #define DELIMITER_CHAR '\\'
@@ -116,7 +45,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 /* Global Variables */
 /* ===================================================================== */
 
-   TiXmlDocument xmldoc; // also used in Tracing.cpp
+	Q2XMLFile *q2xml; // also used in Tracing.cpp
 
    char main_image_name[100];
    
@@ -160,11 +89,11 @@ THE POSSIBILITY OF SUCH DAMAGE.
 /* Commandline Switches */
 /* ===================================================================== */
 
-KNOB<string> KnobXML(KNOB_MODE_WRITEONCE, "pintool",
-    "xmlfile","dek_arch.xml", "Specify file name for output data in XML format");
-
-KNOB<string> KnobMonitorList(KNOB_MODE_WRITEONCE, "pintool",
-    "use_monitor_list","", "Create output report files only for certain function(s) in the application and filter out the rest (the functions are listed in a text file whose name follows)");
+KNOB<string> KnobXML(KNOB_MODE_WRITEONCE, "pintool","xmlfile","dek_arch.xml", "Specify file name for output data in XML format");
+	
+KNOB<string> KnobApplication(KNOB_MODE_WRITEONCE, "pintool", "applic","", "Specify application name for XML file format");
+						 
+KNOB<string> KnobMonitorList(KNOB_MODE_WRITEONCE, "pintool", "use_monitor_list","", "Create output report files only for certain function(s) in the application and filter out the rest (the functions are listed in a text file whose name follows)");
     
 KNOB<BOOL> KnobIgnoreStackAccess(KNOB_MODE_WRITEONCE, "pintool",
     "ignore_stack_access","0", "Ignore memory accesses within application's stack region");
@@ -268,39 +197,12 @@ VOID EnterFC_EXTERNAL_OK(char *name)
 
 
 
-/* ===================================================================== */
-bool Remove_Previous_QUAD_elements()
-{
-	 TiXmlElement* root = xmldoc.RootElement();
-
-	 if (!root) 
-	  {
-		   cerr<<"Error in getting the root element in the xml file.\n";
-		   return 1;
-	  }
-  
-    TiXmlElement* Profile_element=root->FirstChildElement( "PROFILE" );
-	
-	while(Profile_element)
-	{
-	     TiXmlElement* QUAD_element=Profile_element->FirstChildElement( "QUAD" );  
-	     while (QUAD_element)
-	     {
-		   QUAD_element->Clear();
-		   Profile_element->RemoveChild(QUAD_element); // Remove the current empty element
-		   QUAD_element=QUAD_element->NextSiblingElement( "QUAD" );
-	     } //while QUAD_element
-
-         Profile_element=Profile_element->NextSiblingElement( "PROFILE" );
-    }//while Profile_element	
-  return 0;
-}
 //============================================================================
 
 INT32 Usage()
 {
     cerr <<
-        "\nQUADcore v0.4.3\nThis tool provides quantitative data usage statistics by rigorously tracing and analysing all memory accesses within an application.\n\n";
+        "\nQUAD (Quantitative Usage Analysis of Data) v0.4.1\nThis tool provides quantitative data usage statistics by rigorously tracing and analysing all memory accesses within an application.\n\n";
 
     
     cerr << KNOB_BASE::StringKnobSummary();
@@ -451,93 +353,94 @@ VOID Instruction(INS ins, VOID *v)
 	
 	INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)IncreaseTotalInstCounter, IARG_END);
 	
-     if (INS_IsRet(ins))  // we are monitoring the 'ret' instructions since we need to know when we are leaving functions in order to update our own virtual 'Call Stack'. The mechanism to inject instrumentation code to update the Call Stack (pop) upon leave is not implemented directly contrary to the dive in mechanism. Could be a point for further improvement?! ...
+     if (INS_IsRet(ins))  	
      {
+		 // we are monitoring the 'ret' instructions since we need to know when we are leaving functions 
+		 //in order to update our own virtual 'Call Stack'. The mechanism to inject instrumentation code 
+		 //to update the Call Stack (pop) upon leave is not implemented directly contrary to the dive 
+		 //in mechanism. Could be a point for further improvement?! ...
         INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR)Return, IARG_INST_PTR, IARG_END);
      }
   
- if (!No_Stack_Flag)
-  {
-     if (INS_IsMemoryRead(ins) || INS_IsStackRead(ins) )
-     {
-        INS_InsertPredicatedCall(
-                ins, IPOINT_BEFORE, (AFUNPTR)RecordMem,
-                IARG_INST_PTR,
-                IARG_UINT32, 'R',
-                IARG_MEMORYREAD_EA,
-                IARG_MEMORYREAD_SIZE,
-                IARG_UINT32, INS_IsPrefetch(ins),
-                IARG_END);
-     }
+	if (!No_Stack_Flag)
+	{
+		if (INS_IsMemoryRead(ins) || INS_IsStackRead(ins) )
+		{
+		INS_InsertPredicatedCall(
+				ins, IPOINT_BEFORE, (AFUNPTR)RecordMem,
+				IARG_INST_PTR,
+				IARG_UINT32, 'R',
+				IARG_MEMORYREAD_EA,
+				IARG_MEMORYREAD_SIZE,
+				IARG_UINT32, INS_IsPrefetch(ins),
+				IARG_END);
+		}
 
-     if (INS_HasMemoryRead2(ins))
-     {
-         INS_InsertPredicatedCall(
-                ins, IPOINT_BEFORE, (AFUNPTR)RecordMem,
-                IARG_INST_PTR,
-                IARG_UINT32, 'R',
-                IARG_MEMORYREAD2_EA,
-                IARG_MEMORYREAD_SIZE,
-                IARG_UINT32, INS_IsPrefetch(ins),
-                IARG_END);
-     }
+		if (INS_HasMemoryRead2(ins))
+		{
+			INS_InsertPredicatedCall(
+				ins, IPOINT_BEFORE, (AFUNPTR)RecordMem,
+				IARG_INST_PTR,
+				IARG_UINT32, 'R',
+				IARG_MEMORYREAD2_EA,
+				IARG_MEMORYREAD_SIZE,
+				IARG_UINT32, INS_IsPrefetch(ins),
+				IARG_END);
+		}
 
-     if (INS_IsMemoryWrite(ins) || INS_IsStackWrite(ins) ) 
-     {
-         INS_InsertPredicatedCall(
-                ins, IPOINT_BEFORE, (AFUNPTR)RecordMem,
-                IARG_INST_PTR,
-                IARG_UINT32, 'W',
-                IARG_MEMORYWRITE_EA,
-                IARG_MEMORYWRITE_SIZE,
-                IARG_UINT32, INS_IsPrefetch(ins),
-                IARG_END);
-      }
-    } // end of Stack is ok!
- 
- else  // ignore stack access
-  {
-     if (INS_IsMemoryRead(ins) )
-     {
-        INS_InsertPredicatedCall(
-                ins, IPOINT_BEFORE, (AFUNPTR)RecordMemSP,
-                IARG_INST_PTR,
-		IARG_REG_VALUE, REG_STACK_PTR,
-                IARG_UINT32, 'R',
-                IARG_MEMORYREAD_EA,
-                IARG_MEMORYREAD_SIZE,
-                IARG_UINT32, INS_IsPrefetch(ins),
-                IARG_END);
-     }
+		if (INS_IsMemoryWrite(ins) || INS_IsStackWrite(ins) ) 
+		{
+			INS_InsertPredicatedCall(
+				ins, IPOINT_BEFORE, (AFUNPTR)RecordMem,
+				IARG_INST_PTR,
+				IARG_UINT32, 'W',
+				IARG_MEMORYWRITE_EA,
+				IARG_MEMORYWRITE_SIZE,
+				IARG_UINT32, INS_IsPrefetch(ins),
+				IARG_END);
+		}
+	} // end of Stack is ok!
+	else  // ignore stack access
+	{
+		if (INS_IsMemoryRead(ins) )
+		{
+		INS_InsertPredicatedCall(
+				ins, IPOINT_BEFORE, (AFUNPTR)RecordMemSP,
+				IARG_INST_PTR,
+				IARG_REG_VALUE, REG_STACK_PTR,
+				IARG_UINT32, 'R',
+				IARG_MEMORYREAD_EA,
+				IARG_MEMORYREAD_SIZE,
+				IARG_UINT32, INS_IsPrefetch(ins),
+				IARG_END);
+		}
 
-     if (INS_HasMemoryRead2(ins))
-     {
-         INS_InsertPredicatedCall(
-                ins, IPOINT_BEFORE, (AFUNPTR)RecordMemSP,
-                IARG_INST_PTR,
-		IARG_REG_VALUE, REG_STACK_PTR,
-                IARG_UINT32, 'R',
-                IARG_MEMORYREAD2_EA,
-                IARG_MEMORYREAD_SIZE,
-                IARG_UINT32, INS_IsPrefetch(ins),
-                IARG_END);
-     }
+		if (INS_HasMemoryRead2(ins))
+		{
+			INS_InsertPredicatedCall(
+				ins, IPOINT_BEFORE, (AFUNPTR)RecordMemSP,
+				IARG_INST_PTR,
+				IARG_REG_VALUE, REG_STACK_PTR,
+				IARG_UINT32, 'R',
+				IARG_MEMORYREAD2_EA,
+				IARG_MEMORYREAD_SIZE,
+				IARG_UINT32, INS_IsPrefetch(ins),
+				IARG_END);
+		}
 
-     if (INS_IsMemoryWrite(ins)) 
-     {
-         INS_InsertPredicatedCall(
-                ins, IPOINT_BEFORE, (AFUNPTR)RecordMemSP,
-                IARG_INST_PTR,
-		IARG_REG_VALUE, REG_STACK_PTR,
-                IARG_UINT32, 'W',
-                IARG_MEMORYWRITE_EA,
-                IARG_MEMORYWRITE_SIZE,
-                IARG_UINT32, INS_IsPrefetch(ins),
-                IARG_END);
-      }
-  
-  } // end of ignore stack 
-   
+		if (INS_IsMemoryWrite(ins)) 
+		{
+			INS_InsertPredicatedCall(
+				ins, IPOINT_BEFORE, (AFUNPTR)RecordMemSP,
+				IARG_INST_PTR,
+				IARG_REG_VALUE, REG_STACK_PTR,
+				IARG_UINT32, 'W',
+				IARG_MEMORYWRITE_EA,
+				IARG_MEMORYWRITE_SIZE,
+				IARG_UINT32, INS_IsPrefetch(ins),
+				IARG_END);
+		}
+	} // end of ignore stack 
 }
 
 /* ===================================================================== */
@@ -555,10 +458,9 @@ const char * StripPath(const char * path)
 int  main(int argc, char *argv[])
 {
     cerr << endl << "Initializing QUAD framework..." << endl;
-    string xmlfilename,monitorfilename;
+	string xmlfilename,monitorfilename;
+	string applicationName;
     char temp[100];
-    FILE *xmlfile;
-    
 
    // assume Out_of_the_main_function_scope as the first routine
    CallStack.push("Out_of_the_main_function_scope");
@@ -579,6 +481,7 @@ int  main(int argc, char *argv[])
     }
     
     xmlfilename=KnobXML.Value();   // this is the name of the output XML file
+	applicationName=KnobApplication.Value();
     No_Stack_Flag=KnobIgnoreStackAccess.Value(); // Stack access ok or not?
     monitorfilename=KnobMonitorList.Value(); // this is the name of the monitorlist file to use
     Uncommon_Functions_Filter=KnobIgnoreUncommonFNames.Value(); // interested in uncommon function names or not?
@@ -599,43 +502,12 @@ int  main(int argc, char *argv[])
 
     strcpy(main_image_name,StripPath(temp));
 
-    // ------------------ XML file preprocessing ---------------------------------------   
-    
-    xmlfile=fopen(xmlfilename.c_str(),"r");
-    if (!xmlfile)   // file does not exist or can't access the file
-    {
-       xmlfile=fopen(xmlfilename.c_str(),"wt");
-       if (!xmlfile)
-       {
-           cerr << "\nCan not create the xml file ... Aborting! " << endl;         
-           return 1;
-       }
-       // create an empty XML file with preamble...
-       fprintf(xmlfile,"<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n");    
-       fprintf(xmlfile,"<!DOCTYPE ORGANIZATION SYSTEM \"architecture.dtd\">\n");    
-       fprintf(xmlfile,"<ORGANIZATION>\n");    
-       fprintf(xmlfile,"</ORGANIZATION>\n");    
-       fclose(xmlfile);
-     }  
-	else fclose(xmlfile);
-
-	bool loadOkay = xmldoc.LoadFile(xmlfilename.c_str());
-	if (!loadOkay)
-	{
-		cerr<<"\nFailed to load the XML file... Aborting! \n";
-		return 2;
-	}
-    
-    
-    // remove all <QUAD> elements from the xml file    
-    if(Remove_Previous_QUAD_elements())
-    {
-      cerr<<"\nFailed to remove previous <QUAD> elements in the XML file... Aborting! \n";;
-      return 3;
-    }
-    
+	
+    // ------------------ XML file pre-processing ---------------------------------------   
+	string ns("q2:");
+	string fileName("q2profiling.xml");
+	q2xml = new Q2XMLFile(fileName,ns,applicationName);
     // ------------------ Monitorlist file processing ---------------------------------------   
-    
     if (Monitor_ON)  // user is interested in filtering out 
     {
 	    ifstream monitorin;
@@ -694,3 +566,4 @@ int  main(int argc, char *argv[])
     
     return 0;
 }
+
