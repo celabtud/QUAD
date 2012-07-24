@@ -7,6 +7,7 @@
 * channel between a producer and consumer.
 * 
 */
+
 #ifndef CHANNEL_H_
 #define CHANNEL_H_
 

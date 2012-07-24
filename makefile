@@ -74,11 +74,17 @@ TINYXMLSRCS = ticpp.cpp tinystr.cpp tinyxml.cpp tinyxmlerror.cpp tinyxmlparser.c
 Q2XMLSRCS = Channel.cpp Q2XMLFile.cpp Exception.cpp $(TINYXMLSRCS)
 XMLOBJS = $(Q2XMLSRCS:%.cpp=%.o)
 
+#add the names of more CPP files here for the added functionality in QUAD
+CPPSRCS = BBlock.cpp
+CPPOBJS = $(CPPSRCS:%.cpp=%.oo)
+CPPFLAGS = -O3
+CPPINCS = -I.
+
 ##############################################################
 # build rules
 ##############################################################
 all: tools
-tools: $(XMLOBJS) $(OBJDIR) $(TOOLS) $(OBJDIR)cp-pin.exe
+tools: $(CPPOBJS) $(XMLOBJS) $(OBJDIR) $(TOOLS) $(OBJDIR)cp-pin.exe
 test: $(OBJDIR) $(TOOL_ROOTS:%=%.test)
 
 QUAD.test: $(OBJDIR)cp-pin.exe
@@ -94,14 +100,17 @@ $(OBJDIR)%.o : %.cpp
 	$(CXX) -c $(CXXFLAGS) $(PIN_CXXFLAGS) ${OUTOPT}$@ $<
 
 %.o: %.cpp
-	$(CXX) $(INCLUDES) $(CXXXMLFLAGS) -c $<   
+	$(CXX) $(INCLUDES) $(CXXXMLFLAGS) -c $< -o  $@
+
+%.oo: %.cpp
+	$(CXX) $(CPPINCS) $(CPPFLAGS) -c $< -o $@
 
 $(TOOLS): $(PIN_LIBNAMES)
 
 $(TOOLS): %$(PINTOOL_SUFFIX) : %.o
-	${LINKER} $(PIN_LDFLAGS) $(LINK_DEBUG) ${LINK_OUT}$@ $< $(XMLOBJS) ${PIN_LPATHS} $(PIN_LIBS) $(DBG) $(LDFLAGS)
+	${LINKER} $(PIN_LDFLAGS) $(LINK_DEBUG) ${LINK_OUT}$@ $< $(CPPOBJS) $(XMLOBJS) ${PIN_LPATHS} $(PIN_LIBS) $(DBG) $(LDFLAGS)
 
 ## cleaning
 clean:
-	-rm -rf $(OBJDIR) *.out *.tested *.failed makefile.copy $(XMLOBJS) *~
+	-rm -rf $(OBJDIR) *.out *.tested *.failed makefile.copy $(XMLOBJS) $(CPPOBJS) *~
 

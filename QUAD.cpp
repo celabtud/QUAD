@@ -3,7 +3,7 @@
 *
 * Authour : S. Arash Ostadzadeh (ostadzadeh@gmail.com)
 *
-*/ 
+*/
 
 // when a monitor file is provided, a list of communicating functions with each kernel is extracted from the profile data and stored
 // separately for each function in the monitor list in two modes (In one the kernel is acting as a producer, in the other, as a consumer.
@@ -24,7 +24,7 @@
 #include "Channel.h"
 #include "Exception.h"
 #include "Q2XMLFile.h"
-
+#include "BBlock.h"
 //----------------------------------------------------------------------
 #if defined( WIN32 ) && defined( TUNE )
 	#include <crtdbg.h>
@@ -38,11 +38,21 @@
 #define DELIMITER_CHAR '/'
 #endif
 
+//---------- for current path
+#ifdef WIN32
+	#include <direct.h>
+	#define GetCurrentDir _getcwd
+#else
+	#include <unistd.h>
+	#define GetCurrentDir getcwd
+#endif
+
 /* ===================================================================== */
 /* Global Variables */
 /* ===================================================================== */
 
 Q2XMLFile *q2xml; // also used in Tracing.cpp
+BBList bblist;		//list of BBlocks
 
 char main_image_name[100];
 
@@ -64,7 +74,9 @@ BOOL Uncommon_Functions_Filter=TRUE;
 
 BOOL No_Stack_Flag = FALSE;   // a flag showing our interest to include or exclude stack memory accesses in analysis. The default value indicates tracing also the stack accesses. Can be modified by 'ignore_stack_access' command line switch
 BOOL Verbose_ON = FALSE;  // a flag showing the interest to print something when the tool is running or not!
-   
+
+BOOL BBMODE = FALSE;
+
 typedef struct 
 {
 	UINT64 total_IN_ML;  // total bytes consumed by this function, produced by a function in the monitor list
@@ -81,10 +93,18 @@ typedef struct
 TTL_ML_Data_Pack ;
    
 map <string,TTL_ML_Data_Pack *> ML_OUTPUT ;  // used to maintain info regarding monitor list statistics
-			
+
+char fileName[FILENAME_MAX];
+char cCurrentPath[FILENAME_MAX];
 /* ===================================================================== */
 /* Commandline Switches */
 /* ===================================================================== */
+
+KNOB<string> KnobBBFile(KNOB_MODE_WRITEONCE, "pintool",
+	"bbfile","bbList.txt", "Specify file name for the text file containg BBlocks");
+
+KNOB<BOOL> KnobBBMode(KNOB_MODE_WRITEONCE, "pintool",
+	"bbMode","0", "Set bbMode to 1 to use basic block mode <specify basic blocks in bbList.txt >");
 
 KNOB<string> KnobXML(KNOB_MODE_WRITEONCE, "pintool",
 	"xmlfile","dek_arch.xml", "Specify file name for output data in XML format");
@@ -280,18 +300,18 @@ static VOID RecordMem(VOID * ip, CHAR r, VOID * addr, INT32 size, BOOL isPrefetc
 {
 	if(!isPrefetch) // if this is not a prefetch memory access instruction  
 	{
-		string temp=CallStack.top();
-		if(!SeenFname.count(temp))  // this is the first time I see this function name in charge of access
+		string ftnName=CallStack.top();
+		if(!SeenFname.count(ftnName))  // this is the first time I see this function name in charge of access
 		{
-			SeenFname.insert(temp);  // mark this function name as seen
+			SeenFname.insert(ftnName);  // mark this function name as seen
 			GlobalfunctionNo++;      // create a dummy Function Number for this function
-			NametoADD[temp]=GlobalfunctionNo;   // create the string -> Number binding
-			ADDtoName[GlobalfunctionNo]=temp;   // create the Number -> String binding
+			NametoADD[ftnName]=GlobalfunctionNo;   // create the string -> Number binding
+			ADDtoName[GlobalfunctionNo]=ftnName;   // create the Number -> String binding
 		} 
 		
 		for(int i=0;i<size;i++)
 		{
-			RecordMemoryAccess((ADDRINT)addr,NametoADD[temp],r=='W');
+			RecordMemoryAccess((ADDRINT)addr,NametoADD[ftnName],r=='W');
 			addr=((char *)addr)+1;  // cast not needed anyway!
 
 			if (Verbose_ON && Total_Ins>999999)
@@ -311,20 +331,35 @@ static VOID RecordMemSP(VOID * ip, VOID * ESP, CHAR r, VOID * addr, INT32 size, 
 {
 	if(!isPrefetch) // if this is not a prefetch memory access instruction  
 	{
+		string ftnName=CallStack.top(); //top of the stack is the currently open function
+		
+		if(BBMODE)
+		{
+			string filename;    // This will hold the source file name.
+			INT32 line = 0;     // This will hold the line number within the file.
+			
+			PIN_LockClient();
+			// In this example, we don't print the column number so there is no reason to obtain it.
+			// Simply pass a NULL pointer instead. Also, acquiring the client lock is required here
+			// in analysis functions.
+			PIN_GetSourceLocation( (ADDRINT)ip, NULL, &line, &filename);
+			PIN_UnlockClient();
+			ftnName = bblist.probeBB(filename, ftnName, line);
+		}
+		
 		if (addr >= ESP) return;  // if we are reading from the stack range, ignore this access
 
-		string temp=CallStack.top();
-		if(!SeenFname.count(temp))  // this is the first time I see this function name in charge of access
+		if(!SeenFname.count(ftnName))  // this is the first time I see this function name in charge of access
 		{
-			SeenFname.insert(temp);  // mark this function name as seen
+			SeenFname.insert(ftnName);  // mark this function name as seen
 			GlobalfunctionNo++;      // create a dummy Function Number for this function
-			NametoADD[temp]=GlobalfunctionNo;   // create the string -> Number binding
-			ADDtoName[GlobalfunctionNo]=temp;   // create the Number -> String binding
+			NametoADD[ftnName]=GlobalfunctionNo;   // create the string -> Number binding
+			ADDtoName[GlobalfunctionNo]=ftnName;   // create the Number -> String binding
 		} 
 
 		for(int i=0;i<size;i++)
 		{
-			RecordMemoryAccess((ADDRINT)addr,NametoADD[temp],r=='W');
+			RecordMemoryAccess((ADDRINT)addr,NametoADD[ftnName],r=='W');
 			addr=((char *)addr)+1;  // cast not needed anyway!
 			if (Verbose_ON && Total_Ins>999999)
 			{
@@ -350,6 +385,7 @@ VOID IncreaseTotalInstCounter()
 // Is called for every instruction and instruments reads and writes and the Ret instruction
 VOID Instruction(INS ins, VOID *v)
 {
+	
 	INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)IncreaseTotalInstCounter, IARG_END);
 
 	if (INS_IsRet(ins))  	
@@ -454,10 +490,17 @@ const char * StripPath(const char * path)
 }
 /* ===================================================================== */
 
-int  main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
+	char fileNameOnly[FILENAME_MAX]="test.c";
+	if (!GetCurrentDir(fileName, sizeof(fileName) ) )
+		return -1;
+	
+	strcat(fileName, "/");
+	strcat(fileName, fileNameOnly);
+	
 	cerr << endl << "Initializing QUAD framework..." << endl;
-	string xmlfilename,monitorfilename;
+	string xmlfilename,monitorfilename,bbFileName;
 	string applicationName;
 	char temp[100];
 
@@ -478,12 +521,22 @@ int  main(int argc, char *argv[])
 
 	xmlfilename=KnobXML.Value();   // this is the name of the output XML file
 	applicationName=KnobApplication.Value();
+	
+	BBMODE=KnobBBMode.Value(); //weather BB mode or not
+	bbFileName=KnobBBFile.Value(); //name of Basic Block File
+	
 	No_Stack_Flag=KnobIgnoreStackAccess.Value(); // Stack access ok or not?
 	monitorfilename=KnobMonitorList.Value(); // this is the name of the monitorlist file to use
 	Uncommon_Functions_Filter=KnobIgnoreUncommonFNames.Value(); // interested in uncommon function names or not?
 	Include_External_Images=KnobIncludeExternalImages.Value(); // include/exclude external image files?
 	Verbose_ON=KnobVerbose_ON.Value();  // print something or not during execution
 
+	if(BBMODE)
+	{
+		//initialize the basic blocks from file specified
+		bblist.initFromFile(bbFileName);
+	}
+	
 	// parse the command line arguments for the main image name and the status of the monitorlist flag
 	for (int i=1;i<argc-1;i++)
 	{

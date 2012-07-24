@@ -7,7 +7,6 @@
 * are mainly responsible for putting the information in the q2 xml file.
 * 
 */
-
 #include "Q2XMLFile.h"
 #include "Channel.h"
 #include "ticpp.h"

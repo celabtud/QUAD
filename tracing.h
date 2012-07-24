@@ -12,6 +12,6 @@
 #endif
 
 int CreateDSGraphFile();
-int RecordMemoryAccess(long int,long int,long int);
+int RecordMemoryAccess(VOID *, long int,long int,long int);
 
 #endif //__TRACING__H__
