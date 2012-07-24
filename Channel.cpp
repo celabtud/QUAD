@@ -1,12 +1,12 @@
 /*
- * File : Channel.cpp
- *
- * Author : Imran Ashraf
- *
- * This file contains the member functions of Channel class. The operate on 
- * the communication channel between a producer and consumer.
- * 
- */
+* File : Channel.cpp
+*
+* Author : Imran Ashraf
+*
+* This file contains the member functions of Channel class. The operate on 
+* the communication channel between a producer and consumer.
+* 
+*/
 
 #include <fstream>
 #include <string>

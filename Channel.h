@@ -1,12 +1,12 @@
 /*
- * Channel.h
- *
- * Author : Imran Ashraf
- *
- * This file contains the Channel class. This class models the communication
- * channel between a producer and consumer.
- * 
- */
+* Channel.h
+*
+* Author : Imran Ashraf
+*
+* This file contains the Channel class. This class models the communication
+* channel between a producer and consumer.
+* 
+*/
 
 #ifndef CHANNEL_H_
 #define CHANNEL_H_

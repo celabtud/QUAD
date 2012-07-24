@@ -1,12 +1,12 @@
 /*
- * Q2XMLFile.cpp
- *
- * Author : Imran Ashraf
- *
- * This file contains the member functions of Q2XMLFile class. These functions
- * are mainly responsible for putting the information in the q2 xml file.
- * 
- */
+* Q2XMLFile.cpp
+*
+* Author : Imran Ashraf
+*
+* This file contains the member functions of Q2XMLFile class. These functions
+* are mainly responsible for putting the information in the q2 xml file.
+* 
+*/
 
 #include "Q2XMLFile.h"
 #include "Channel.h"

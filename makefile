@@ -26,7 +26,6 @@
 #
 PIN_HOME ?= ./..
 
-
 ##############################################################
 #
 # set up and include *.config files
@@ -59,16 +58,14 @@ ifeq ($(TARGET_COMPILER),ms)
     PIN=$(PIN_HOME)/pin.bat
 endif
 
-
 ##############################################################
-#
 # Tools - you may wish to add your tool name to TOOL_ROOTS
-#
 ##############################################################
+#CXXFLAGS+=-pg
+#LDFLAGS+=-pg
 
 CXXXMLFLAGS=-O3 -g -DTIXML_USE_TICPP -fPIC
 #-std=c++0x
-LDFLAGS=
 INCLUDES=-I. 
 TOOL_ROOTS = QUAD
 TOOLS = $(TOOL_ROOTS:%=$(OBJDIR)%$(PINTOOL_SUFFIX))
@@ -77,14 +74,9 @@ TINYXMLSRCS = ticpp.cpp tinystr.cpp tinyxml.cpp tinyxmlerror.cpp tinyxmlparser.c
 Q2XMLSRCS = Channel.cpp Q2XMLFile.cpp Exception.cpp $(TINYXMLSRCS)
 XMLOBJS = $(Q2XMLSRCS:%.cpp=%.o)
 
-
-
 ##############################################################
-#
 # build rules
-#
 ##############################################################
-
 all: tools
 tools: $(XMLOBJS) $(OBJDIR) $(TOOLS) $(OBJDIR)cp-pin.exe
 test: $(OBJDIR) $(TOOL_ROOTS:%=%.test)
@@ -93,28 +85,23 @@ QUAD.test: $(OBJDIR)cp-pin.exe
       $(MAKE) -k -C QUAD PIN_HOME=$(PIN_HOME)
 
 $(OBJDIR)cp-pin.exe:
-	@-echo "111"
 	$(CXX) $(PIN_HOME)/source/tools/Tests/cp-pin.cpp $(APP_CXXFLAGS) $(XMLOBJS) -o $(OBJDIR)cp-pin.exe
 
 $(OBJDIR):
 	mkdir -p $(OBJDIR)
 
 $(OBJDIR)%.o : %.cpp
-	@-echo "222"
 	$(CXX) -c $(CXXFLAGS) $(PIN_CXXFLAGS) ${OUTOPT}$@ $<
 
 %.o: %.cpp
-	@-echo "333"
 	$(CXX) $(INCLUDES) $(CXXXMLFLAGS) -c $<   
 
 $(TOOLS): $(PIN_LIBNAMES)
 
 $(TOOLS): %$(PINTOOL_SUFFIX) : %.o
-	@-echo "444"
-	${LINKER} $(PIN_LDFLAGS) $(LINK_DEBUG) ${LINK_OUT}$@ $< $(XMLOBJS) ${PIN_LPATHS} $(PIN_LIBS) $(DBG)
-
+	${LINKER} $(PIN_LDFLAGS) $(LINK_DEBUG) ${LINK_OUT}$@ $< $(XMLOBJS) ${PIN_LPATHS} $(PIN_LIBS) $(DBG) $(LDFLAGS)
 
 ## cleaning
 clean:
-	-rm -rf $(OBJDIR) *.out *.tested *.failed makefile.copy $(XMLOBJS)
+	-rm -rf $(OBJDIR) *.out *.tested *.failed makefile.copy $(XMLOBJS) *~
 
