@@ -1,12 +1,12 @@
 /*
-* BBlock.h
-*
-* Author : Imran Ashraf
-*
-* This file contains the BBlock class. This class models the Basic Blocks
-* to record the communication at the line level between a producer and consumer.
-* 
-*/
+ * BBlock.h 
+ *
+ * Author : Imran Ashraf
+ *
+ * This file contains the BBlock class. This class models the Basic Blocks
+ * to record the communication at the line level between a producer and consumer.
+ * 
+ */
 
 #ifndef BBLOCK_H
 #define BBLOCK_H

@@ -1,12 +1,13 @@
 /*
-* Q2XMLFile.cpp
-*
-* Author : Imran Ashraf
-*
-* This file contains the member functions of Q2XMLFile class. These functions
-* are mainly responsible for putting the information in the q2 xml file.
-* 
-*/
+ * Q2XMLFile.cpp
+ *
+ * Author : Imran Ashraf (iimran.aashraf@gmail.com)
+ *
+ * This file contains the member functions of Q2XMLFile class. These functions
+ * are mainly responsible for putting the information in the q2 xml file.
+ * 
+ */
+
 #include "Q2XMLFile.h"
 #include "Channel.h"
 #include "ticpp.h"
@@ -125,9 +126,9 @@ Channel * Q2XMLFile::getChannel(string prod, string cons) const
 	}
 	else
 	{
-		channelItr->FirstChildElement(m_namespace + "hUnMA")->GetText(&unma);
-		channelItr->FirstChildElement(m_namespace + "hBytes")->GetText(&bytes);
-		channelItr->FirstChildElement(m_namespace + "hValues")->GetText(&values);
+		channelItr->FirstChildElement(m_namespace + "UnMA")->GetText(&unma);
+		channelItr->FirstChildElement(m_namespace + "Bytes")->GetText(&bytes);
+		channelItr->FirstChildElement(m_namespace + "UnDV")->GetText(&values);
 
 		return new Channel(prod,cons,unma,bytes,values);
 	}
@@ -143,9 +144,9 @@ void Q2XMLFile::printAllChValues() const
 	{
 		string prod = channelItr->GetAttribute("producer");
 		string cons = channelItr->GetAttribute("consumer");
-		channelItr->FirstChildElement(m_namespace + "hUnMA")->GetText(&unma);
-		channelItr->FirstChildElement(m_namespace + "hBytes")->GetText(&bytes);
-		channelItr->FirstChildElement(m_namespace + "hValues")->GetText(&values);
+		channelItr->FirstChildElement(m_namespace + "UnMA")->GetText(&unma);
+		channelItr->FirstChildElement(m_namespace + "Bytes")->GetText(&bytes);
+		channelItr->FirstChildElement(m_namespace + "UnDV")->GetText(&values);
 		
 		Channel *ch = new Channel(prod,cons,unma,bytes,values);
 		ch->printChannel();
@@ -179,12 +180,12 @@ void Q2XMLFile::insertChannel(Channel * ch)
 
 	try
 	{
-		unmaTag = chTag->FirstChildElement(m_namespace + "hUnMA");
+		unmaTag = chTag->FirstChildElement(m_namespace + "UnMA");
 		unmaTag->SetText(ch->getUnMA());
 	}
 	catch( ticpp::Exception& ex )
 	{
-		unmaTag = new ticpp::Element(m_namespace + "hUnMA");
+		unmaTag = new ticpp::Element(m_namespace + "UnMA");
 		unmaTag->SetText( ch->getUnMA() );
 		chTag->LinkEndChild(unmaTag);
 	}
@@ -192,24 +193,24 @@ void Q2XMLFile::insertChannel(Channel * ch)
 
 	try
 	{
-		bytesTag = chTag->FirstChildElement(m_namespace + "hBytes");
+		bytesTag = chTag->FirstChildElement(m_namespace + "Bytes");
 		bytesTag->SetText(ch->getBytes());
 	}
 	catch( ticpp::Exception& ex )
 	{
-		bytesTag = new ticpp::Element(m_namespace + "hBytes");
+		bytesTag = new ticpp::Element(m_namespace + "Bytes");
 		bytesTag->SetText( ch->getBytes() );
 		chTag->LinkEndChild(bytesTag);
 	}
 
 	try
 	{
-		valuesTag = chTag->FirstChildElement(m_namespace + "hValues");
+		valuesTag = chTag->FirstChildElement(m_namespace + "UnDV");
 		valuesTag->SetText(ch->getValues());
 	}
 	catch( ticpp::Exception& ex )
 	{
-		valuesTag = new ticpp::Element(m_namespace + "hValues");
+		valuesTag = new ticpp::Element(m_namespace + "UnDV");
 		valuesTag->SetText( ch->getValues() );
 		chTag->LinkEndChild(valuesTag);
 	}

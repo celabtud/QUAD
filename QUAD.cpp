@@ -1,9 +1,10 @@
 /*
-* QUAD.cpp 
-*
-* Authour : S. Arash Ostadzadeh (ostadzadeh@gmail.com)
-*
-*/
+ * QUAD.cpp 
+ *
+ * Authour : S. Arash Ostadzadeh (ostadzadeh@gmail.com)
+ * Authour : Roel Meeuws (r.j.meeuws@gmail.com)
+ *
+ */
 
 // when a monitor file is provided, a list of communicating functions with each kernel is extracted from the profile data and stored
 // separately for each function in the monitor list in two modes (In one the kernel is acting as a producer, in the other, as a consumer.

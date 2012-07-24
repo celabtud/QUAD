@@ -1,13 +1,13 @@
 /*
-* File : BBlock.cpp
-*
-* Author : Imran Ashraf
-*
-* This file contains the member functions of BBlock class. These operate on 
-* basic blcoks provided in the text file as input and record the communication
-* between a producer and consumer at the basic block level.
-* 
-*/
+ * File : BBlock.cpp
+ *
+ * Author : Imran Ashraf
+ *
+ * This file contains the member functions of BBlock class. These operate on 
+ * basic blcoks provided in the text file as input and record the communication
+ * between a producer and consumer at the basic block level.
+ * 
+ */
 
 #include"BBlock.h"
 

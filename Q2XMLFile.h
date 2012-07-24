@@ -1,12 +1,12 @@
 /*
-* Q2XMLFile.h
-*
-* Author : Imran Ashraf
-* 
-* This file contains the Q2XMLFile class. This class models the xml file
-* related functionality responsible for putting the information in the q2 xml file.
-* 
-*/
+ * Q2XMLFile.h
+ *
+ * Author : Imran Ashraf (iimran.aashraf@gmail.com)
+ * 
+ * This file contains the Q2XMLFile class. This class models the xml file
+ * related functionality responsible for putting the information in the q2 xml file.
+ * 
+ */
 
 #ifndef Q2XMLFILE_H_
 #define Q2XMLFILE_H_

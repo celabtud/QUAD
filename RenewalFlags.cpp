@@ -1,4 +1,16 @@
+/*
+ * File : RenewalFlags.cpp
+ *
+ * Author : Imran Ashraf
+ *
+ * This file contains the member functions of RenewalFlags class. These functions 
+ * associate flags with each memory location to track the unique data values
+ * communicated between a producer and consumer in a communication.
+ * 
+ */
+
 #include<iostream>
+
 #include"RenewalFlags.h"
 
 /*

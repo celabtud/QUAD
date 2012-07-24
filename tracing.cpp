@@ -1,3 +1,11 @@
+/*
+ * tracing.h
+ *
+ * Authour : S. Arash Ostadzadeh (ostadzadeh@gmail.com)
+ * Authour : Roel Meeuws (r.j.meeuws@gmail.com)
+ *
+ */
+
 #include "tracing.h"
 
 #include "Channel.h"

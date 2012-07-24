@@ -1,3 +1,11 @@
+/*
+ * tracing.h
+ *
+ * Authour : S. Arash Ostadzadeh (ostadzadeh@gmail.com)
+ * Authour : Roel Meeuws (r.j.meeuws@gmail.com)
+ *
+ */
+
 #ifndef __TRACING__H__
 #define __TRACING__H__
 

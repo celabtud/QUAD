@@ -1,3 +1,14 @@
+/*
+ * File : RenewalFlags.h
+ *
+ * Author : Imran Ashraf
+ *
+ * This file contains the RenewalFlags class. This class contains dynamic structure to
+ * associate flags with each memory location to track the unique data values
+ * communicated between a producer and consumer in a communication.
+ * 
+ */
+
 #ifndef _RENWALFLAGS_H_
 #define _RENWALFLAGS_H_
 
