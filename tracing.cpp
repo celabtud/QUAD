@@ -8,10 +8,11 @@
 
 #include "tracing.h"
 
-#include "Channel.h"
 #include "Exception.h"
 #include "Q2XMLFile.h"
-#include"RenewalFlags.cpp"
+#include "Channel.h"
+#include "RenewalFlags.h"
+
 
 #define max(a,b) ((a)>(b)?(a):(b))
 #define min(a,b) ((a)<(b)?(a):(b))
@@ -222,9 +223,34 @@ int IsNewFunc(ADDRINT fadd)
 	return 0; /* function address exists in the list */
 }
 //------------------------------------------------------------------------------------------
+void set2ranges(set<ADDRINT>* UNMAs, vector<Range> & ranges)
+{
+	ADDRINT curr, next; 
+	Range r;
+	set<ADDRINT>::const_iterator pos = UNMAs->begin();
+	while(pos != UNMAs->end()) 
+	{  
+		curr= *pos;
+		next= *(++pos);
+		//cout<<curr<<'-';
+		r.lower = curr;
+		while( (next == curr + 1 ) && (pos != UNMAs->end() )  )
+		{
+			curr=*pos;
+			next= *(++pos);
+		}
+		//cout<<curr<<endl;
+		r.upper = curr;
+		
+		ranges.push_back(r);
+	}  
+}
+
 void recTrieTraverse(struct trieNode* current,int level)
 {
     int i;
+	vector<Range> ranges;
+	
 	if (level==15)
 	{   
 		Binding *temp;
@@ -249,18 +275,46 @@ void recTrieTraverse(struct trieNode* current,int level)
 						break;
 				}	
 				
-				if(IsNewFunc( temp->producer ) )
-					fprintf(gfp,"\"%08x\" [label=\"%s\"];\n", (unsigned int)temp->producer , prodName.c_str());
+				if(IsNewFunc( temp->producer ) ) {
+					fprintf(gfp,"\"%08x\" [label=\"%s", (unsigned int)temp->producer, prodName.c_str());
+					if(KnobBBFuncCount.Value()==TRUE) { 
+						fprintf(gfp," count:%d", FunctionToCount[NameToFunction[prodName]]);
+					}
+					fprintf(gfp,"\"];\n");
+				}
 
-				if(IsNewFunc( temp->consumer ) )
-					fprintf(gfp,"\"%08x\" [label=\"%s\"];\n", (unsigned int)temp->consumer , consName.c_str());
+				if(IsNewFunc( temp->consumer ) ) {
+					fprintf(gfp,"\"%08x\" [label=\"%s", (unsigned int)temp->consumer, consName.c_str());
+					if(KnobBBFuncCount.Value()==TRUE) { 
+						fprintf(gfp," count:%d", FunctionToCount[NameToFunction[consName]]);
+					}
+					fprintf(gfp,"\"];\n");
+				}
 
 				color = (int) (  1023 *  log((double)(temp->data_exchange)) / log((double)MaxLabel)  ); 
 				//fprintf(gfp,"\"%08x\" -> \"%08x\"  [label=\"%llu Bytes (%lu UnMAs %llu UnDVs)\" color=\"#%02x%02x%02x\"]\n",(unsigned int)temp->producer,(unsigned int)temp->consumer,temp->data_exchange,(unsigned long int)temp->UniqueMemCells->size(),temp->UniqueValues, max(0,color-768),min(255,512-abs(color-512)), max(0,min(255,512-color)));
-				fprintf(gfp,"\"%08x\" -> \"%08x\"  [label=\"%llu Bytes \\n %lu UnMAs \\n %llu UnDVs\" color=\"#%02x%02x%02x\"]\n",(unsigned int)temp->producer,(unsigned int)temp->consumer,temp->data_exchange,(unsigned long int)temp->UniqueMemCells->size(),temp->UniqueValues, max(0,color-768),min(255,512-abs(color-512)), max(0,min(255,512-color)));			
+				
+				unsigned long int unma = temp->UniqueMemCells->size();
+				if(KnobBBFuncCount.Value()==TRUE && 
+				  FunctionToCount[NameToFunction[consName]]>0) {
+					unma = ((float)unma/FunctionToCount[NameToFunction[consName]]);
+				};
+				
+				fprintf(gfp,"\"%08x\" -> \"%08x\"  [label=",(unsigned int)temp->producer,(unsigned int)temp->consumer);
+				if(KnobDotShowBytes.Value()==TRUE) {
+					fprintf(gfp,"\"%llu Bytes\\n",temp->data_exchange);
+				}
+				fprintf(gfp,"%lu UnMAs \\n",unma);
+				if(KnobDotShowUnDVs.Value()==TRUE) {
+					fprintf(gfp,"%llu UnDVs",temp->UniqueValues);
+				}
+				
+				fprintf(gfp,"\" color=\"#%02x%02x%02x\"]\n", max(0,color-768),min(255,512-abs(color-512)), max(0,min(255,512-color)));
 				
 				//Put_Binding_in_XML_file(prodName,consName,temp->data_exchange,temp->UniqueMemCells->size());
-				q2xml->insertChannel(new Channel(prodName,consName,temp->UniqueMemCells->size(),temp->data_exchange,temp->UniqueValues));
+// 				q2xml->insertChannel(new Channel(prodName,consName,temp->UniqueMemCells->size(),temp->data_exchange,temp->UniqueValues));
+				set2ranges(temp->UniqueMemCells, ranges);
+				q2xml->insertChannel(new Channel(prodName,consName,ranges,temp->UniqueMemCells->size(),temp->data_exchange,temp->UniqueValues));
 
 				// do we need the total statistics file always or not? ... should be modified if we need this in any case... 
 				// do not forget to make also the relevant modifications in the monitor list input file processing ... 

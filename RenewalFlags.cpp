@@ -10,7 +10,6 @@
  */
 
 #include<iostream>
-
 #include"RenewalFlags.h"
 
 /*

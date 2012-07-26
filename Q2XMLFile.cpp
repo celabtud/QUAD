@@ -11,6 +11,7 @@
 #include "Q2XMLFile.h"
 #include "Channel.h"
 #include "ticpp.h"
+#include "Utility.h"
 
 Q2XMLFile::Q2XMLFile(const string& filename, const string& ns, const string &appname)
 	:m_filename(filename) , m_namespace(ns),m_appfinger(ns + "application"),m_applicname(appname)
@@ -106,6 +107,7 @@ void Q2XMLFile::reset()
 Channel * Q2XMLFile::getChannel(string prod, string cons) const
 {
 	unsigned long long unma, bytes, values;
+	ticpp::Element *rangeTag;
 	
 	ticpp::Iterator< ticpp::Element > channelItr(m_namespace + "channel");
 	for(channelItr = channelItr.begin(m_qdufinger); channelItr != channelItr.end(); channelItr++)
@@ -129,8 +131,28 @@ Channel * Q2XMLFile::getChannel(string prod, string cons) const
 		channelItr->FirstChildElement(m_namespace + "UnMA")->GetText(&unma);
 		channelItr->FirstChildElement(m_namespace + "Bytes")->GetText(&bytes);
 		channelItr->FirstChildElement(m_namespace + "UnDV")->GetText(&values);
-
-		return new Channel(prod,cons,unma,bytes,values);
+		
+		try
+		{
+			rangeTag = channelItr->FirstChildElement(m_namespace + "UnMARanges");
+		}
+		catch (ticpp::Exception& ex)
+		{
+			rangeTag = new ticpp::Element(m_namespace + "UnMARanges");
+			channelItr->LinkEndChild(rangeTag);  
+		}
+		
+		vector<Range> ranges;
+		Range r;
+		ticpp::Iterator< ticpp::Element > unmaRangeItr(m_namespace + "range");
+		for(unmaRangeItr = unmaRangeItr.begin(rangeTag); unmaRangeItr != unmaRangeItr.end(); unmaRangeItr++)
+		{
+			r.lower = str2no( unmaRangeItr->GetAttribute("lower") );
+			r.upper = str2no( unmaRangeItr->GetAttribute("upper") );
+			ranges.push_back(r);
+		}
+		
+		return new Channel(prod,cons,ranges,unma,bytes,values);
 	}
 }
 
@@ -138,6 +160,7 @@ Channel * Q2XMLFile::getChannel(string prod, string cons) const
 void Q2XMLFile::printAllChValues() const
 {
 	unsigned long long unma, bytes, values;
+	ticpp::Element *rangeTag;
 	
 	ticpp::Iterator< ticpp::Element > channelItr(m_namespace + "channel");
 	for(channelItr = channelItr.begin(m_qdufinger); channelItr != channelItr.end(); channelItr++)
@@ -148,7 +171,19 @@ void Q2XMLFile::printAllChValues() const
 		channelItr->FirstChildElement(m_namespace + "Bytes")->GetText(&bytes);
 		channelItr->FirstChildElement(m_namespace + "UnDV")->GetText(&values);
 		
-		Channel *ch = new Channel(prod,cons,unma,bytes,values);
+		rangeTag = channelItr->FirstChildElement(m_namespace + "UnMARanges");
+		
+		vector<Range> ranges;
+		Range r;
+		ticpp::Iterator< ticpp::Element > unmaRangeItr(m_namespace + "range");
+		for(unmaRangeItr = unmaRangeItr.begin(rangeTag); unmaRangeItr != unmaRangeItr.end(); unmaRangeItr++)
+		{
+			r.lower = str2no( unmaRangeItr->GetAttribute("lower") );
+			r.upper = str2no( unmaRangeItr->GetAttribute("upper") );
+			ranges.push_back(r);
+		}
+		
+		Channel *ch = new Channel(prod,cons,ranges,unma, bytes,values);
 		ch->printChannel();
 	}
 }
@@ -156,7 +191,7 @@ void Q2XMLFile::printAllChValues() const
 void Q2XMLFile::insertChannel(Channel * ch)
 {
 	ticpp::Element *chTag;
-	ticpp::Element *unmaTag, *bytesTag, * valuesTag;
+	ticpp::Element *unmaTag, *bytesTag, * valuesTag , * rangeTag, * range;
 	string m_applicname("canny");
 
 	// get channel
@@ -214,6 +249,29 @@ void Q2XMLFile::insertChannel(Channel * ch)
 		valuesTag->SetText( ch->getValues() );
 		chTag->LinkEndChild(valuesTag);
 	}
+	
+	
+	try
+	{
+		rangeTag = chTag->FirstChildElement(m_namespace + "UnMARanges");
+	}
+	catch( ticpp::Exception& ex )
+	{
+		rangeTag  = new ticpp::Element(m_namespace + "UnMARanges");
+		chTag->LinkEndChild(rangeTag);
+	}
+	
+	vector<Range>::const_iterator It;  
+	vector<Range> ranges;
+	ch->getRanges(ranges);
+	for (It = ranges.begin(); It != ranges.end(); ++It) 
+	{
+		range = new ticpp::Element(m_namespace + "range");
+		range->SetAttribute("lower",It->lower);
+		range->SetAttribute("upper",It->upper);
+		rangeTag->LinkEndChild(range);
+	}
+	
 }
 
 

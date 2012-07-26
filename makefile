@@ -66,19 +66,20 @@ endif
 
 CXXXMLFLAGS=-O3 -g -DTIXML_USE_TICPP -fPIC
 #-std=c++0x
-INCLUDES=-I. 
+INCLUDES=-I.
 TOOL_ROOTS = QUAD
 TOOLS = $(TOOL_ROOTS:%=$(OBJDIR)%$(PINTOOL_SUFFIX))
 
 TINYXMLSRCS = ticpp.cpp tinystr.cpp tinyxml.cpp tinyxmlerror.cpp tinyxmlparser.cpp
-Q2XMLSRCS = Channel.cpp Q2XMLFile.cpp Exception.cpp $(TINYXMLSRCS)
+Q2XMLSRCS = RenewalFlags.cpp Channel.cpp Q2XMLFile.cpp Exception.cpp $(TINYXMLSRCS)
 XMLOBJS = $(Q2XMLSRCS:%.cpp=%.o)
 
 #add the names of more CPP files here for the added functionality in QUAD
-CPPSRCS = BBlock.cpp
+# RenewalFlags.cpp is directly included in file
+CPPSRCS = BBlock.cpp Utility.cpp
 CPPOBJS = $(CPPSRCS:%.cpp=%.oo)
 CPPFLAGS = -O3
-CPPINCS = -I.
+CPPINCS = -I. 
 
 ##############################################################
 # build rules
@@ -91,16 +92,21 @@ QUAD.test: $(OBJDIR)cp-pin.exe
       $(MAKE) -k -C QUAD PIN_HOME=$(PIN_HOME)
 
 $(OBJDIR)cp-pin.exe:
-	$(CXX) $(PIN_HOME)/source/tools/Tests/cp-pin.cpp $(APP_CXXFLAGS) $(XMLOBJS) -o $(OBJDIR)cp-pin.exe
+	$(CXX) $(PIN_HOME)/source/tools/Tests/cp-pin.cpp $(APP_CXXFLAGS) $(CPPOBJS) $(XMLOBJS) -o $(OBJDIR)cp-pin.exe
 
 $(OBJDIR):
 	mkdir -p $(OBJDIR)
+
+# This is added because tracing.cpp is included in QUAD.cpp. This is BAD PRACTICE
+# and could be solved by making a QUAD.h, but I do not have time now.
+$(OBJDIR)QUAD.o: QUAD.cpp tracing.cpp
+	$(CXX) -c $(CXXFLAGS) $(PIN_CXXFLAGS) ${OUTOPT}$@ QUAD.cpp
 
 $(OBJDIR)%.o : %.cpp
 	$(CXX) -c $(CXXFLAGS) $(PIN_CXXFLAGS) ${OUTOPT}$@ $<
 
 %.o: %.cpp
-	$(CXX) $(INCLUDES) $(CXXXMLFLAGS) -c $< -o  $@
+	$(CXX) $(INCLUDES) $(PIN_CXXFLAGS) $(CXXXMLFLAGS) -c $< -o  $@
 
 %.oo: %.cpp
 	$(CXX) $(CPPINCS) $(CPPFLAGS) -c $< -o $@

@@ -78,6 +78,13 @@ BOOL Verbose_ON = FALSE;  // a flag showing the interest to print something when
 
 BOOL BBMODE = FALSE;
 
+// A mapping between the name used and the functions names. This is needed
+// as names can be also basic blocks/code fragments
+map <string, string> NameToFunction;
+
+// The number of calls for each function
+map <string, int> FunctionToCount;
+
 typedef struct 
 {
 	UINT64 total_IN_ML;  // total bytes consumed by this function, produced by a function in the monitor list
@@ -106,6 +113,15 @@ KNOB<string> KnobBBFile(KNOB_MODE_WRITEONCE, "pintool",
 
 KNOB<BOOL> KnobBBMode(KNOB_MODE_WRITEONCE, "pintool",
 	"bbMode","0", "Set bbMode to 1 to use basic block mode <specify basic blocks in bbList.txt >");
+
+KNOB<BOOL> KnobBBFuncCount(KNOB_MODE_WRITEONCE, "pintool",
+	"bbFuncCount","0", "Set bbFuncCount to 1 to gather call number statistics and dump them to XML file.");
+
+KNOB<BOOL> KnobDotShowBytes(KNOB_MODE_WRITEONCE, "pintool",
+	"dotShowBytes","1", "Set dotDotShowBytes to 0 to disable the printing of 'Bytes' on the edges.");
+
+KNOB<BOOL> KnobDotShowUnDVs(KNOB_MODE_WRITEONCE, "pintool",
+	"dotShowUnDVs","1", "Set dotDotShowUnDVs to 0 to disable the printing of 'UnDVs' on the edges.");
 
 KNOB<string> KnobXML(KNOB_MODE_WRITEONCE, "pintool",
 	"xmlfile","dek_arch.xml", "Specify file name for output data in XML format");
@@ -177,9 +193,15 @@ VOID EnterFC(char *name,bool flag)
 	}
 	#endif
 
-	// update the current function name	 
+	// update the current function name
 	string RName(name);
 	CallStack.push(RName);
+	
+	if(FunctionToCount.find(RName)==FunctionToCount.end()) {
+		FunctionToCount[RName]=1;
+	} else {
+		FunctionToCount[RName]++;
+	}
 }
 
 //============================================================================
@@ -346,6 +368,10 @@ static VOID RecordMemSP(VOID * ip, VOID * ESP, CHAR r, VOID * addr, INT32 size, 
 			PIN_GetSourceLocation( (ADDRINT)ip, NULL, &line, &filename);
 			PIN_UnlockClient();
 			ftnName = bblist.probeBB(filename, ftnName, line);
+			
+			if(NameToFunction.find(ftnName)==NameToFunction.end()) {
+				NameToFunction[ftnName]=CallStack.top();
+			}
 		}
 		
 		if (addr >= ESP) return;  // if we are reading from the stack range, ignore this access

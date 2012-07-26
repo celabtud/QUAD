@@ -12,7 +12,7 @@
 #ifndef _RENWALFLAGS_H_
 #define _RENWALFLAGS_H_
 
-#include <pin.H>
+#include "pin.H"
 
 //a location can be fresh or old
 enum MemFlagStatus {OLD, FRESH};
