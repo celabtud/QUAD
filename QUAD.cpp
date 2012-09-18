@@ -11,6 +11,7 @@
 // the names of the output text files are <kernel_(p).txt> and <kernel_(c).txt>
 
 #include "pin.H"
+#include <fcntl.h>
 #include <stdio.h>
 #include <iostream>
 #include <iomanip>
@@ -26,6 +27,11 @@
 #include "Exception.h"
 #include "Q2XMLFile.h"
 #include "BBlock.h"
+
+#ifdef QUAD_LIBELF
+#include "gelf.h"
+#endif
+
 //----------------------------------------------------------------------
 #if defined( WIN32 ) && defined( TUNE )
 	#include <crtdbg.h>
@@ -59,6 +65,17 @@ char main_image_name[100];
 
 map <string,ADDRINT> NametoADD;
 map <ADDRINT,string> ADDtoName;
+
+class GlobalSymbol {
+	public:
+		GlobalSymbol():start(0),size(0){};
+		GlobalSymbol(ADDRINT st, ADDRINT sz):start(st),size(sz){};
+		ADDRINT start;
+		ADDRINT size;
+};
+
+map <string, GlobalSymbol*> globalSymbols;
+
 
 stack <string> CallStack; // our own virtual Call Stack to trace function call
 
@@ -123,11 +140,21 @@ KNOB<BOOL> KnobDotShowBytes(KNOB_MODE_WRITEONCE, "pintool",
 KNOB<BOOL> KnobDotShowUnDVs(KNOB_MODE_WRITEONCE, "pintool",
 	"dotShowUnDVs","1", "Set dotDotShowUnDVs to 0 to disable the printing of 'UnDVs' on the edges.");
 
+KNOB<BOOL> KnobDotShowRanges(KNOB_MODE_WRITEONCE, "pintool",
+	"dotShowRanges","1", "Set dotDotShowRanges to 1 to enable the printing of 'ranges' on the edges.");
+
+KNOB<int> KnobDotShowRangesLimit(KNOB_MODE_WRITEONCE, "pintool",
+	"dotShowRangesLimit","3", "Set dotDotShowRangesLimit to the maximum number of ranges you want to show.");
+
 KNOB<string> KnobXML(KNOB_MODE_WRITEONCE, "pintool",
 	"xmlfile","dek_arch.xml", "Specify file name for output data in XML format");
-	
+
 KNOB<string> KnobApplication(KNOB_MODE_WRITEONCE, "pintool", 
 	"applic","", "Specify application name for XML file format");
+
+// TODO: This should be determined automatically (vladms)
+KNOB<string> KnobElf(KNOB_MODE_WRITEONCE, "pintool", 
+	"elf","", "Specify the name of the elf file (this works only if libelf support is compiled in QUAD).");
 
 KNOB<string> KnobMonitorList(KNOB_MODE_WRITEONCE, "pintool", 
 	"use_monitor_list","", "Create output report files only for certain function(s) in the application and filter out the rest (the functions are listed in a text file whose name follows)");
@@ -546,6 +573,12 @@ int main(int argc, char *argv[])
 	if( PIN_Init(argc,argv) )
 		return Usage();
 
+#ifndef QUAD_LIBELF
+	if(KnobElf.Value().size()>0) {
+		printf("ERROR: Trying to use Elf file option when libelf support not compiled in QUAD\n");
+	}
+#endif
+
 	xmlfilename=KnobXML.Value();   // this is the name of the output XML file
 	applicationName=KnobApplication.Value();
 	
@@ -631,6 +664,62 @@ int main(int argc, char *argv[])
 	PIN_AddFiniFunction(Fini, 0); 
 
 	cerr << "Starting the application to be analysed..." << endl;
+
+#ifdef QUAD_LIBELF
+	if(KnobElf.Value().size()>0) {
+
+		int elf_fd = open(KnobElf.Value().c_str(),O_RDONLY);
+		Elf* elf;
+		if (elf_version(EV_CURRENT) == EV_NONE) {
+			printf("ERROR: ELF library initialization failed: %s",elf_errmsg(-1));
+		}
+	
+		elf = elf_begin(elf_fd, ELF_C_READ ,NULL);
+		// We read the symbol array
+
+		if(elf==NULL) {
+			printf("ERROR: ELF loading failed: %s",elf_errmsg(-1));
+		} else {
+			Elf_Scn *scn;
+			int symbol_count, i;
+			Elf_Data *edata =NULL;
+			GElf_Shdr shdr;
+			GElf_Sym sym;
+			scn = NULL; 
+			
+			if (Verbose_ON) {
+				printf("  QUAD global variable detection enabled\n");
+			}
+			while ((scn = elf_nextscn(elf, scn)) != NULL) { 
+				if (gelf_getshdr(scn, &shdr) != &shdr)
+					printf( "getshdr() failed: %s.", elf_errmsg(-1));
+				if(shdr.sh_type == SHT_SYMTAB) {
+					edata = elf_getdata(scn, edata);
+					symbol_count = shdr.sh_size / shdr.sh_entsize;
+					
+					// loop through to grab all symbols
+					for(i = 0; i < symbol_count; i++) {
+						// libelf grabs the symbol data using gelf_getsym()
+						gelf_getsym(edata, i, &sym);
+						
+						if(ELF32_ST_BIND(sym.st_info)==STB_GLOBAL &&
+						  ELF32_ST_TYPE(sym.st_info)==STT_OBJECT && sym.st_size>0) {
+							if (Verbose_ON) {
+								printf("    Symbol name %s (%08x %08d)\n",
+								  elf_strptr(elf, shdr.sh_link, sym.st_name),
+								  (int)sym.st_value, (int)sym.st_size);
+							}
+							globalSymbols[string(elf_strptr(elf, shdr.sh_link, sym.st_name))] =
+							  new GlobalSymbol((int)sym.st_value, (int)sym.st_size);
+						}
+					}
+				}
+			}
+		}
+		close(elf_fd);
+	}
+#endif // QUAD_LIBELF
+
 	PIN_StartProgram(); // Never returns
 
 	return 0;

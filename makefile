@@ -26,6 +26,19 @@
 #
 PIN_HOME ?= ./..
 
+#
+# 2. If variable LIBELF_INC is defined, means that libelf is 
+#    installed on the system and can be used. Note that PIN 
+#    comes with libelf-0.8.5 and we tested only with that 
+#    version installed
+#
+ifdef LIBELF_INC
+    LIBELF_CXXFLAGS=-I$(LIBELF_INC) -I$(LIBELF_INC)/libelf -DQUAD_LIBELF
+else
+    $(warning To take advantage of all the features of QUAD please point LIBELF_INC to the include directory where libelf is installed (ex: /usr/local/include))
+endif
+
+
 ##############################################################
 #
 # set up and include *.config files
@@ -64,7 +77,7 @@ endif
 #CXXFLAGS+=-pg
 #LDFLAGS+=-pg
 
-CXXXMLFLAGS=-O3 -g -DTIXML_USE_TICPP -fPIC
+CXXXMLFLAGS=-O3 -g -DTIXML_USE_TICPP -fPIC $(LIBELF_CXXFLAGS)
 #-std=c++0x
 INCLUDES=-I.
 TOOL_ROOTS = QUAD

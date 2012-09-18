@@ -309,12 +309,43 @@ void recTrieTraverse(struct trieNode* current,int level)
 					fprintf(gfp,"%llu UnDVs",temp->UniqueValues);
 				}
 				
-				fprintf(gfp,"\" color=\"#%02x%02x%02x\"]\n", max(0,color-768),min(255,512-abs(color-512)), max(0,min(255,512-color)));
 				
 				//Put_Binding_in_XML_file(prodName,consName,temp->data_exchange,temp->UniqueMemCells->size());
 // 				q2xml->insertChannel(new Channel(prodName,consName,temp->UniqueMemCells->size(),temp->data_exchange,temp->UniqueValues));
 				set2ranges(temp->UniqueMemCells, ranges);
 				q2xml->insertChannel(new Channel(prodName,consName,ranges,temp->UniqueMemCells->size(),temp->data_exchange,temp->UniqueValues));
+
+				if(KnobDotShowRanges.Value()==TRUE) {
+					vector<Range>::iterator it = ranges.begin();
+					int crt=0;
+					while(it!=ranges.end()) {
+						fprintf(gfp,"(%8x-%8x)",(*it).lower,(*it).upper);
+#ifdef QUAD_LIBELF
+						map<string,GlobalSymbol*>::iterator its = globalSymbols.begin();
+						while(its!=globalSymbols.end()) {
+							if(its->second->start<=it->lower &&
+							  its->second->start+its->second->size>=it->upper) {
+								fprintf(gfp," from %s (%2.1f%%)",its->first.c_str(),
+								  its->second->size!=0?((it->upper-it->lower+1)/(float)its->second->size)*100:100);
+								break;
+							}
+							its++;
+						}
+#endif
+						fprintf(gfp,"\\n");
+						it++;
+						crt++;
+						if(KnobDotShowRangesLimit.Value()<crt+1) {
+							break;
+						}
+					}
+					
+					if(it!=ranges.end()) {
+						fprintf(gfp," and other...\\n");
+					}
+				}
+
+				fprintf(gfp,"\" color=\"#%02x%02x%02x\"]\n", max(0,color-768),min(255,512-abs(color-512)), max(0,min(255,512-color)));
 
 				// do we need the total statistics file always or not? ... should be modified if we need this in any case... 
 				// do not forget to make also the relevant modifications in the monitor list input file processing ... 

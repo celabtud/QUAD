@@ -89,6 +89,19 @@ Beside the common built-in options for Pin-developed tools, there are some speci
 	No silence! print the number of instruction currently being executed on the console
 * By default, QUADcore is silent.
 
+  -elf name
+    Used to read the names of the global symbols (using libelf library). The 
+    executable name is represented by 'elf'. Works only on Linux OS.
+
+  -dotShowRanges 1|0
+    Enable showing in the dot file, on the edges the ranges of memory accessed.
+    In case libelf library is enabled, and if the ranges are pointing in global
+    variables, the name of the global variables will be shown.
+
+  -dotShowRangesLimit
+    Limits the number of ranges printed on the edges by the option 
+    'dotShowRanges'.
+
 
 Output Files
 ============
