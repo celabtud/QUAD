@@ -295,9 +295,10 @@ void recTrieTraverse(struct trieNode* current,int level)
 				//fprintf(gfp,"\"%08x\" -> \"%08x\"  [label=\"%llu Bytes (%lu UnMAs %llu UnDVs)\" color=\"#%02x%02x%02x\"]\n",(unsigned int)temp->producer,(unsigned int)temp->consumer,temp->data_exchange,(unsigned long int)temp->UniqueMemCells->size(),temp->UniqueValues, max(0,color-768),min(255,512-abs(color-512)), max(0,min(255,512-color)));
 				
 				unsigned long int unma = temp->UniqueMemCells->size();
+				float unmaPerCall = 0;
 				if(KnobBBFuncCount.Value()==TRUE && 
 				  FunctionToCount[NameToFunction[consName]]>0) {
-					unma = ((float)unma/FunctionToCount[NameToFunction[consName]]);
+					unmaPerCall = ((float)unma/FunctionToCount[NameToFunction[consName]]);
 				};
 				
 				fprintf(gfp,"\"%08x\" -> \"%08x\"  [label=",(unsigned int)temp->producer,(unsigned int)temp->consumer);
@@ -305,8 +306,13 @@ void recTrieTraverse(struct trieNode* current,int level)
 					fprintf(gfp,"\"%llu Bytes\\n",temp->data_exchange);
 				}
 				fprintf(gfp,"%lu UnMAs \\n",unma);
+				if(KnobBBFuncCount.Value()==TRUE && 
+				  FunctionToCount[NameToFunction[consName]]>0) {
+					fprintf(gfp,"%8.3f UnMAs/call\\n",unmaPerCall);
+				}
+
 				if(KnobDotShowUnDVs.Value()==TRUE) {
-					fprintf(gfp,"%llu UnDVs",temp->UniqueValues);
+					fprintf(gfp,"%llu UnDVs\\n",temp->UniqueValues);
 				}
 				
 				
