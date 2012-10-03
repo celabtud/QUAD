@@ -84,6 +84,11 @@ ADDRINT GlobalfunctionNo=0x1;
 
 UINT64 Total_Ins=0;  // just for counting the total number of executed instructions
 UINT32 Total_M_Ins=0; // total number of instructions but divided by a million
+UINT64 Progress_Ins=0;
+UINT32 Progress_M_Ins=0;
+UINT32 Percentage=0;
+
+BOOL Count_Only = FALSE;
 
 BOOL Monitor_ON = FALSE;
 BOOL Include_External_Images=FALSE; // a flag showing our interest to trace functions which are not included in the main image file
@@ -124,6 +129,15 @@ char cCurrentPath[FILENAME_MAX];
 /* ===================================================================== */
 /* Commandline Switches */
 /* ===================================================================== */
+
+KNOB<BOOL> KnobCountOnly(KNOB_MODE_WRITEONCE, "pintool",
+	"count_only", "0", "Set count_only to 1 to only count instructions");
+
+KNOB<UINT32> KnobProgress_M_Ins(KNOB_MODE_WRITEONCE, "pintool",
+	"m_ins", "0", "the number of instructions that will be executed divided by one million");
+
+KNOB<UINT64> KnobProgress_Ins(KNOB_MODE_WRITEONCE, "pintool",
+	"ins", "0", "the number of instructions that will be executed modulo one million");
 
 KNOB<string> KnobBBFile(KNOB_MODE_WRITEONCE, "pintool",
 	"bbfile","bbList.txt", "Specify file name for the text file containg BBlocks");
@@ -296,12 +310,12 @@ INT32 Usage()
 
 VOID  Return(VOID *ip)
 {
-       string fn_name = RTN_FindNameByAddress((ADDRINT)ip);
+	string fn_name = RTN_FindNameByAddress((ADDRINT)ip);
 
-       if(!(CallStack.empty()) && (CallStack.top()==fn_name))
-	   {  
-		   CallStack.pop();
-	   }
+	if(!(CallStack.empty()) && (CallStack.top()==fn_name))
+	{  
+		CallStack.pop();
+	}
 			
 }
 
@@ -337,9 +351,17 @@ VOID UpdateCurrentFunctionName(RTN rtn,VOID *v)
 VOID Fini(INT32 code, VOID *v)
 {
     cerr << "\nFinished executing the instrumented application..." << endl;
-    CreateDSGraphFile();
-    if(Monitor_ON)
-	    CreateTotalStatFile();
+
+    if (Count_Only)
+    {
+    	cerr << "Counted Instructions: " << Total_M_Ins << " M + " << Total_Ins << endl;
+    }
+    else
+    {
+	    CreateDSGraphFile();
+	    if(Monitor_ON)
+		    CreateTotalStatFile();
+    }
 	
     cerr << "done!" << endl;
 }
@@ -363,14 +385,6 @@ static VOID RecordMem(VOID * ip, CHAR r, VOID * addr, INT32 size, BOOL isPrefetc
 		{
 			RecordMemoryAccess((ADDRINT)addr,NametoADD[ftnName],r=='W');
 			addr=((char *)addr)+1;  // cast not needed anyway!
-
-			if (Verbose_ON && Total_Ins>999999)
-			{
-				Total_M_Ins++;
-				cout<<(char)(13)<<"                                                                   ";
-				cout<<(char)(13)<<"Instructions executed so far = "<<Total_M_Ins<<" M";
-				Total_Ins=0;
-			}
 		}//end for
 	}// end of not a prefetch
 }
@@ -415,13 +429,6 @@ static VOID RecordMemSP(VOID * ip, VOID * ESP, CHAR r, VOID * addr, INT32 size, 
 		{
 			RecordMemoryAccess((ADDRINT)addr,NametoADD[ftnName],r=='W');
 			addr=((char *)addr)+1;  // cast not needed anyway!
-			if (Verbose_ON && Total_Ins>999999)
-			{
-				Total_M_Ins++;
-				cout<<(char)(13)<<"                                                                   ";
-				cout<<(char)(13)<<"Instructions executed so far = "<<Total_M_Ins<<" M";
-				Total_Ins=0;
-			}
 		}//end for
 	}// end of not a prefetch
 }
@@ -432,6 +439,28 @@ static VOID RecordMemSP(VOID * ip, VOID * ESP, CHAR r, VOID * addr, INT32 size, 
 VOID IncreaseTotalInstCounter()
 {
 	Total_Ins++;
+	if (Total_Ins>999999)
+	{
+		Total_M_Ins++;
+		Total_Ins=0;
+		if (Verbose_ON) {
+			cout<<(char)(13)<<"                                                                   ";
+			cout<<(char)(13)<<"Instructions executed so far = "<<Total_M_Ins<<" M";
+		}
+	}
+	if (!Count_Only && (Progress_Ins > 0 || Progress_M_Ins > 0)) {
+		double PTot = Progress_Ins / 100 + Progress_M_Ins * 10000 /*one million divided by one hundred*/;
+		UINT32 pr = Total_M_Ins * (1000000 / PTot) + Total_Ins / PTot;
+		if (Percentage != pr) {
+			Percentage = pr;
+			cerr << "Progress: |"
+				<< setfill('=') << setw(Percentage / 5) << ""
+				<< setfill(' ') << setw(20 - Percentage / 5) << ""
+				<< "| "
+				<< setiosflags(ios_base::right) << setw(3) << Percentage << "%"
+				<< "\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b" << flush;
+		}
+	}
 }
 
 /* ===================================================================== */
@@ -443,93 +472,96 @@ VOID Instruction(INS ins, VOID *v)
 	INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)IncreaseTotalInstCounter, IARG_END);
 
 	if (INS_IsRet(ins))  	
-		{
-			// we are monitoring the 'ret' instructions since we need to know when we are leaving functions 
-			//in order to update our own virtual 'Call Stack'. The mechanism to inject instrumentation code 
-			//to update the Call Stack (pop) upon leave is not implemented directly contrary to the dive 
-			//in mechanism. Could be a point for further improvement?! ...
+	{
+		// we are monitoring the 'ret' instructions since we need to know when we are leaving functions 
+		//in order to update our own virtual 'Call Stack'. The mechanism to inject instrumentation code 
+		//to update the Call Stack (pop) upon leave is not implemented directly contrary to the dive 
+		//in mechanism. Could be a point for further improvement?! ...
 		INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR)Return, IARG_INST_PTR, IARG_END);
-		}
+	}
 
-	if (!No_Stack_Flag)
+	if (!Count_Only)
 	{
-		if (INS_IsMemoryRead(ins) || INS_IsStackRead(ins) )
+		if (!No_Stack_Flag)
 		{
-			INS_InsertPredicatedCall(
-				ins, IPOINT_BEFORE, (AFUNPTR)RecordMem,
-				IARG_INST_PTR,
-				IARG_UINT32, 'R',
-				IARG_MEMORYREAD_EA,
-				IARG_MEMORYREAD_SIZE,
-				IARG_UINT32, INS_IsPrefetch(ins),
-				IARG_END);
-		}
+			if (INS_IsMemoryRead(ins) || INS_IsStackRead(ins) )
+			{
+				INS_InsertPredicatedCall(
+					ins, IPOINT_BEFORE, (AFUNPTR)RecordMem,
+					IARG_INST_PTR,
+					IARG_UINT32, 'R',
+					IARG_MEMORYREAD_EA,
+					IARG_MEMORYREAD_SIZE,
+					IARG_UINT32, INS_IsPrefetch(ins),
+					IARG_END);
+			}
 
-		if (INS_HasMemoryRead2(ins))
-		{
-			INS_InsertPredicatedCall(
-				ins, IPOINT_BEFORE, (AFUNPTR)RecordMem,
-				IARG_INST_PTR,
-				IARG_UINT32, 'R',
-				IARG_MEMORYREAD2_EA,
-				IARG_MEMORYREAD_SIZE,
-				IARG_UINT32, INS_IsPrefetch(ins),
-				IARG_END);
-		}
+			if (INS_HasMemoryRead2(ins))
+			{
+				INS_InsertPredicatedCall(
+					ins, IPOINT_BEFORE, (AFUNPTR)RecordMem,
+					IARG_INST_PTR,
+					IARG_UINT32, 'R',
+					IARG_MEMORYREAD2_EA,
+					IARG_MEMORYREAD_SIZE,
+					IARG_UINT32, INS_IsPrefetch(ins),
+					IARG_END);
+			}
 
-		if (INS_IsMemoryWrite(ins) || INS_IsStackWrite(ins) ) 
+			if (INS_IsMemoryWrite(ins) || INS_IsStackWrite(ins) ) 
+			{
+				INS_InsertPredicatedCall(
+					ins, IPOINT_BEFORE, (AFUNPTR)RecordMem,
+					IARG_INST_PTR,
+					IARG_UINT32, 'W',
+					IARG_MEMORYWRITE_EA,
+					IARG_MEMORYWRITE_SIZE,
+					IARG_UINT32, INS_IsPrefetch(ins),
+					IARG_END);
+			}
+		} // end of Stack is ok!
+		else  // ignore stack access
 		{
+			if (INS_IsMemoryRead(ins) )
+			{
 			INS_InsertPredicatedCall(
-				ins, IPOINT_BEFORE, (AFUNPTR)RecordMem,
-				IARG_INST_PTR,
-				IARG_UINT32, 'W',
-				IARG_MEMORYWRITE_EA,
-				IARG_MEMORYWRITE_SIZE,
-				IARG_UINT32, INS_IsPrefetch(ins),
-				IARG_END);
-		}
-	} // end of Stack is ok!
-	else  // ignore stack access
-	{
-		if (INS_IsMemoryRead(ins) )
-		{
-		INS_InsertPredicatedCall(
-				ins, IPOINT_BEFORE, (AFUNPTR)RecordMemSP,
-				IARG_INST_PTR,
-				IARG_REG_VALUE, REG_STACK_PTR,
-				IARG_UINT32, 'R',
-				IARG_MEMORYREAD_EA,
-				IARG_MEMORYREAD_SIZE,
-				IARG_UINT32, INS_IsPrefetch(ins),
-				IARG_END);
-		}
+					ins, IPOINT_BEFORE, (AFUNPTR)RecordMemSP,
+					IARG_INST_PTR,
+					IARG_REG_VALUE, REG_STACK_PTR,
+					IARG_UINT32, 'R',
+					IARG_MEMORYREAD_EA,
+					IARG_MEMORYREAD_SIZE,
+					IARG_UINT32, INS_IsPrefetch(ins),
+					IARG_END);
+			}
 
-		if (INS_HasMemoryRead2(ins))
-		{
-			INS_InsertPredicatedCall(
-				ins, IPOINT_BEFORE, (AFUNPTR)RecordMemSP,
-				IARG_INST_PTR,
-				IARG_REG_VALUE, REG_STACK_PTR,
-				IARG_UINT32, 'R',
-				IARG_MEMORYREAD2_EA,
-				IARG_MEMORYREAD_SIZE,
-				IARG_UINT32, INS_IsPrefetch(ins),
-				IARG_END);
-		}
+			if (INS_HasMemoryRead2(ins))
+			{
+				INS_InsertPredicatedCall(
+					ins, IPOINT_BEFORE, (AFUNPTR)RecordMemSP,
+					IARG_INST_PTR,
+					IARG_REG_VALUE, REG_STACK_PTR,
+					IARG_UINT32, 'R',
+					IARG_MEMORYREAD2_EA,
+					IARG_MEMORYREAD_SIZE,
+					IARG_UINT32, INS_IsPrefetch(ins),
+					IARG_END);
+			}
 
-		if (INS_IsMemoryWrite(ins)) 
-		{
-			INS_InsertPredicatedCall(
-				ins, IPOINT_BEFORE, (AFUNPTR)RecordMemSP,
-				IARG_INST_PTR,
-				IARG_REG_VALUE, REG_STACK_PTR,
-				IARG_UINT32, 'W',
-				IARG_MEMORYWRITE_EA,
-				IARG_MEMORYWRITE_SIZE,
-				IARG_UINT32, INS_IsPrefetch(ins),
-				IARG_END);
-		}
-	} // end of ignore stack 
+			if (INS_IsMemoryWrite(ins)) 
+			{
+				INS_InsertPredicatedCall(
+					ins, IPOINT_BEFORE, (AFUNPTR)RecordMemSP,
+					IARG_INST_PTR,
+					IARG_REG_VALUE, REG_STACK_PTR,
+					IARG_UINT32, 'W',
+					IARG_MEMORYWRITE_EA,
+					IARG_MEMORYWRITE_SIZE,
+					IARG_UINT32, INS_IsPrefetch(ins),
+					IARG_END);
+			}
+		} // end of ignore stack 
+	}
 }
 
 /* ===================================================================== */
@@ -573,6 +605,9 @@ int main(int argc, char *argv[])
 	if( PIN_Init(argc,argv) )
 		return Usage();
 
+	Count_Only=KnobCountOnly.Value();  // whether to count instructions only.
+	Progress_M_Ins = KnobProgress_M_Ins.Value();
+	Progress_Ins = KnobProgress_Ins.Value();
 #ifndef QUAD_LIBELF
 	if(KnobElf.Value().size()>0) {
 		printf("ERROR: Trying to use Elf file option when libelf support not compiled in QUAD\n");
@@ -591,75 +626,80 @@ int main(int argc, char *argv[])
 	Include_External_Images=KnobIncludeExternalImages.Value(); // include/exclude external image files?
 	Verbose_ON=KnobVerbose_ON.Value();  // print something or not during execution
 
-	if(BBMODE)
+	if (!Count_Only)
 	{
-		//initialize the basic blocks from file specified
-		bblist.initFromFile(bbFileName);
+		if(BBMODE)
+		{
+			//initialize the basic blocks from file specified
+			bblist.initFromFile(bbFileName);
+		}
+	
+		// parse the command line arguments for the main image name and the status of the monitorlist flag
+		for (int i=1;i<argc-1;i++)
+		{
+			if (!strcmp(argv[i],"-use_monitor_list") ) 
+				Monitor_ON = TRUE;
+		
+			if (!strcmp(argv[i],"--")) 
+			{
+				strcpy(temp,argv[i+1]);
+				break;
+			}   
+		}
+		strcpy(main_image_name,StripPath(temp));
+
+		// ------------------ XML file pre-processing ---------------------------------------   
+		string ns("q2:");
+		string fileName("q2profiling.xml");
+		q2xml = new Q2XMLFile(fileName,ns,applicationName);
+		// ------------------ Monitorlist file processing ---------------------------------------   
+		if (Monitor_ON)  // user is interested in filtering out 
+		{
+			ifstream monitorin;
+		
+			monitorin.open(monitorfilename.c_str());
+		
+			if (!monitorin)
+			{
+				cerr<<"\nCan not open the monitor list file ("<<monitorfilename.c_str()<<")... Aborting!\n";
+				return 4;
+			}
+		
+			TTL_ML_Data_Pack * DPP;
+			string item;
+
+			do
+			{
+				monitorin>>item;	// get the next function name in the monitor list
+				if (monitorin.eof()) break;	// oops we are finished!
+				DPP=new TTL_ML_Data_Pack;
+				if (!DPP) 
+				{
+					cerr<<"\nMemory allocation failure in monitor list construction... Aborting!\n";
+					return 5;
+				}
+			
+				DPP->total_IN_ML=0;
+				DPP->total_OUT_ML=0;
+				DPP->total_IN_ML_UMA=0;
+				DPP->total_OUT_ML_UMA=0;
+				DPP->total_IN_ALL=0;
+				DPP->total_OUT_ALL=0;
+				DPP->total_IN_ALL_UMA=0;
+				DPP->total_OUT_ALL_UMA=0;
+			
+				ML_OUTPUT[item]=DPP;
+		
+			} while(1);	
+
+			monitorin.close();	    
+		}    
+		// -----------------------------------------------------------------------------------------   
+
+
+		RTN_AddInstrumentFunction(UpdateCurrentFunctionName,0);
 	}
 	
-	// parse the command line arguments for the main image name and the status of the monitorlist flag
-	for (int i=1;i<argc-1;i++)
-	{
-		if (!strcmp(argv[i],"-use_monitor_list") ) 
-			Monitor_ON = TRUE;
-		
-		if (!strcmp(argv[i],"--")) 
-		{
-			strcpy(temp,argv[i+1]);
-			break;
-		}   
-	}
-	strcpy(main_image_name,StripPath(temp));
-
-	// ------------------ XML file pre-processing ---------------------------------------   
-	string ns("q2:");
-	string fileName("q2profiling.xml");
-	q2xml = new Q2XMLFile(fileName,ns,applicationName);
-	// ------------------ Monitorlist file processing ---------------------------------------   
-	if (Monitor_ON)  // user is interested in filtering out 
-	{
-		ifstream monitorin;
-		
-		monitorin.open(monitorfilename.c_str());
-		
-		if (!monitorin)
-		{
-			cerr<<"\nCan not open the monitor list file ("<<monitorfilename.c_str()<<")... Aborting!\n";
-			return 4;
-		}
-		
-		TTL_ML_Data_Pack * DPP;
-		string item;
-
-		do
-		{
-			monitorin>>item;	// get the next function name in the monitor list
-			if (monitorin.eof()) break;	// oops we are finished!
-			DPP=new TTL_ML_Data_Pack;
-			if (!DPP) 
-			{
-				cerr<<"\nMemory allocation failure in monitor list construction... Aborting!\n";
-				return 5;
-			}
-			
-			DPP->total_IN_ML=0;
-			DPP->total_OUT_ML=0;
-			DPP->total_IN_ML_UMA=0;
-			DPP->total_OUT_ML_UMA=0;
-			DPP->total_IN_ALL=0;
-			DPP->total_OUT_ALL=0;
-			DPP->total_IN_ALL_UMA=0;
-			DPP->total_OUT_ALL_UMA=0;
-			
-			ML_OUTPUT[item]=DPP;
-		
-		}while(1);	
-
-		monitorin.close();	    
-	}    
-	// -----------------------------------------------------------------------------------------   
-
-	RTN_AddInstrumentFunction(UpdateCurrentFunctionName,0);
 	INS_AddInstrumentFunction(Instruction, 0);
 	PIN_AddFiniFunction(Fini, 0); 
 
