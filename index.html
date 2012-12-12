@@ -20,7 +20,9 @@
     <header>
       <div class="inner">
         <h1>Quad</h1>
-        <h2>QUAD (Quantitative Usage Analysis of Data) consists of several tools that provide a comprehensive overview of the memory access behavior of an application. The primary goal is the detection of the actual data dependencies at the function-level.</h2>
+        <h2>
+		QUAD (Quantitative Usage Analysis of Data) consists of several tools that provide a comprehensive overview of the memory access behavior of an application. The primary goal is the detection of the actual data dependencies at the function-level.
+		</h2>
         <a href="https://github.com/celabtud/QUAD" class="button"><small>View project on</small>GitHub</a>
       </div>
     </header>
@@ -28,33 +30,169 @@
     <div id="content-wrapper">
       <div class="inner clearfix">
         <section id="main-content">
-          <h3>Welcome to GitHub Pages.</h3>
 
-<p>This automatic page generator is the easiest way to create beautiful pages for all of your projects. Author your page content here using GitHub Flavored Markdown, select a template crafted by a designer, and publish. After your page is generated, you can check out the new branch:</p>
+<h3>Basic Description</h3>
+<p align="justify">
+QUAD (Quantitative Usage Analysis of Data) provides some useful dynamic information regarding data usage between any pair of co-operating functions in an application. The data transfer is calculated in the sense of Producer-Consumer binding. QUAD reports precisely which function is reading data produced by which function. The exact quantities, showing the amount of data transferred (in bytes), as well as the number of unique memory addresses used in the transfer process, are reported. The tool has been developed based on 'Pin'. Pin is a tool kit for dynamic instrumentation of programs. It supports Linux binary executables for Intel (R) Xscale (R), IA-32, Intel64 (64 bit x86), and Itanium (R) processors; Windows executables for IA-32 and Intel64; and MacOS executables for IA-32. Pin does not instrument an executable statically by rewriting it, but rather adds the code dynamically while the executable is running.
+</p>
 
-<pre><code>$ cd your_repo_root/repo_name
-$ git fetch origin
-$ git checkout gh-pages
+<h3>What it does</h3>
+<p align="justify">
+At the moment, QUAD tool is able to track every single access (read/write) to a memory location. Based on monitoring the memory access behaviour of the application, processed information is provided to the user in the form of easily interpretable data, i.e., XML text and '.dot' files.
+</p>
+
+<h3>How to use</h3>
+<p align="justify">
+The Pin tool kit should be installed on the target machine as a prerequisite. You can download the appropriate Pin tool kit from the Intel website <a href="http://www.pintool.org/downloads.html"> http://www.pintool.org/downloads.html</a>.
+
+<br/><br/>
+
+Using Pin, an application and a tool are invoked as follows.
+
+<pre><code>
+pin [pin-options] -t [toolname] [tool-options] -- [application] [application-options]
 </code></pre>
 
-<p>If you're using the GitHub for Mac, simply sync your repository and you'll see the new branch.</p>
+QUAD can be invoked as follows.
 
-<h3>Designer Templates</h3>
+<br/><br/>
 
-<p>We've crafted some handsome templates for you to use. Go ahead and continue to layouts to browse through them. You can easily go back to edit your page before publishing. After publishing your page, you can revisit the page generator and switch to another theme. Your Page content will be preserved if it remained markdown format.</p>
+<b>Linux</b>
+<code><pre>
+pin -t [QUAD-path] QUAD.so [QUAD-options] -- [application-name] [application-options]
+</code></pre>
 
-<h3>Rather Drive Stick?</h3>
+<b>Windows</b>
+<code><pre>
+pin -t [QUAD-path] QUAD.dll [QUAD-options] -- [application-name] [application-options]
+</code></pre>
 
-<p>If you prefer to not use the automatic generator, push a branch named <code>gh-pages</code> to your repository to create a page manually. In addition to supporting regular HTML content, GitHub Pages support Jekyll, a simple, blog aware static site generator written by our own Tom Preston-Werner. Jekyll makes it easy to create site-wide headers and footers without having to copy them across every page. It also offers intelligent blog support and other advanced templating features.</p>
+</p>
+
+<h4>Important Note for Windows users</h4>
+<p align="justify">
+Pin on Windows uses 'dbghelp.dll' by Microsoft to provide symbolic information. This DLL is not distributed with the kit. In order to get support for symbolic information in Pin, you have to download the <a href="http://www.microsoft.com/whdc/devtools/debugging/default.mspx"> Debugging Tools For Windows package</a>, version 6.8.4.0. Use "Debugging Tools For Windows 32-bit Version" for IA-32 architectures and "Debugging Tools For Windows - Native X64" for Intel(R) 64 architectures. Distribution of the debugging tools is provided in .msi format which must be installed to extract a single file. Copy dbghelp.dll from the package into "ia32\bin" or "intel64\bin" directory of the Pin kit. This directory should already contain pin.exe and pinvm.dll files.
+</p>
+
+
+<h3>QUAD Command line Options</h3>
+<p align="justify">
+Beside the common built-in options for Pin-developed tools, there are some specific command line options available to customize QUAD. For a complete list, see the QUAD.cpp file. Here is a brief list:
+
+<dl>
+<dt><code>-filter_uncommon_functions</code></dt>
+<dd align="justify">Filter out uncommon function names which are unlikely to be defined by user (beginning with question mark, underscore(s), etc.) This is useful if you do not want to see strange function names (usually library functions) appearing in the report file(s). The default value for this flag is set to 'true', so use '-filter_uncommon_functions 0' if you want to see all the function names in the main image file of the application, or there are some functions that are filtered out mistakenly by QUAD!
+<br/><br/>
+
+<dt><code>-include_external_images</code></dt>
+<dd align="justify">Trace functions that are contained in external image file(s). This option enables tracing the functions that are contained in external image file(s). By default, only the functions in the main image file are traced and reported. This option together with '-filter_uncommon_functions' provides more flexibility to include/exclude required/unwanted functions in the report files. This option also has considerable impact on the reported quantitative bindings data and the corresponding producers/consumers.
+<br/><br/>
+
+<dt><code>-ignore_stack_access</code></dt>
+<dd align="justify">Ignore memory accesses within application's stack region. By default, QUAD tracks ALL memory accesses to produce binding information. This means, a function extensively using local variable(s) on the stack results in reporting self-bindings in the form of 'x->x' data transfers, which sometimes makes the reports polluted or we get some biased statistics due to a function's formal input parameter that is referenced many times in the stack region after call. To avoid this, there is a possibility to specify '-ignore_stack_access' in the command line, which tends to provide a clear and straightforward information to the user.
+<br/><br/>
+
+<dt><code>-use_monitor_list [file name]</code></dt>
+<dd align="justify">Create output report files only for certain function(s) in the application and filter out the rest (the functions are listed in a text file whose name follows). This option is helpful if there is a need to have the output report files only for specific function(s) and not all. The function names to monitor should be specified in a normal text file, whose path/name should be provided as the following argument.
+<br/><br/>
+
+<dt><code>-xmlfile  </code></dt>
+<dd align="justify">Specify file name for output data in XML format. The main output report file is in XML format and named 'dek_arch.xml' by default. This can be changed by using this option.
+<br/><br/>
+
+<dt><code>-verbose</code></dt>
+<dd align="justify">No silence! print the number of instruction currently being executed on the console. By default, QUAD is silent.
+<br/><br/>
+
+<dt><code>-elf name</code></dt>
+<dd align="justify">Used to read the names of the global symbols (using libelf library). The executable name is represented by 'elf'. Works only on Linux OS.
+<br/><br/>
+
+<dt><code>-dotShowRanges 1|0 </code></dt>
+<dd align="justify">Enable showing in the dot file, on the edges the ranges of memory accessed. In case libelf library is enabled, and if the ranges are pointing in global variables, the name of the global variables will be shown.
+<br/><br/>
+
+<dt><code>-dotShowRangesLimit</code></dt>
+<dd align="justify">Limits the number of ranges printed on the edges by the option 'dotShowRanges'.
+
+</dl>
+
+</p>
+
+
+
+<h3>Terms and Definitions</h3>
+<p align="justify">
+
+<ul>
+<li>Binding: When a function (itself or someone this function is responsible for calling and we are simply not interested to monitor the callee; e.g. system library functions, etc.) writes to a memory location, and later the same memory location is read by another function, we say a binding is established.
+<li>Producer: The name of the function who is responsible for the most recent write to a memory address.
+<li>Consumer: The name of the function who is responsible for reading from that memory location.
+<li>BYTES: The total amount of data being read in this fashion (note that if the same memory location is read 100 times, it is regarded as 100 bytes binding).
+<li>UNMAS: This value shows the number of unique memory addresses used for this transfer, it could be regarded as the actual size of memory buffer needed for the data transfer.
+<li>UNDVS: Amount of Unique Communication between a producer and consumer.
+</ul>
+</p>
+
+
+
+<h3>Output Files and Visualization</h3>
+<p align="justify">
+The output of QUAD tool is in the following formats:
+
+<ul>
+<li>QUAD produces an output file named 'QDUGraph.dot' in the current directory. This is the output for visualization and contains all the binding information. This file can be converted to the pdf format using the following command:
+
+<code><pre> 
+dot -Tpdf QDUGraph.dot -o QDUGraph.pdf
+</code></pre>
+
+The Quantitative Data Usage Graph (QDU) created by QUAD can also be visualized with any package capable of interpreting standard '.dot' files. For example, Graphviz - Graph Visualization Software, which is available for download from http://www.graphviz.org/Download.php
+
+<li>QUAD also produces all the binding information in XML format in the file 'q2profiling.xml'. This XML file can be used by any other tool which needs to process the QUAD information.
+
+<li>Summary report file ('ML_OV_Summary.txt') is also created containing information about the functions specified in a monitor list, only in case the user has specified the relevant option in the command line. This text file basically provides statistics on total bytes/UMA for selected functions. There are eight different values that are explained in the following.
+
+<ul>
+<li>IN_ML: Total number of bytes read by this function that a function in the monitor list is responsible for producing the value(s) of the byte(s)
+<li>IN_ML_UMA: Total number of unique memory addresses used corresponding to 'IN_ML'
+<li>OUT_ML: Total number of bytes read by a function in the monitor list that this function is responsible for producing the value(s) of the byte(s)
+<li>OUT_ML_UMA: Total number of unique memory addresses used corresponding to 'OUT_ML'
+<li>IN_ALL: Total number of bytes read by this function that a function in the application is responsible for producing the value(s) of the byte(s)
+<li>IN_ALL_UMA: Total number of unique memory addresses used corresponding to 'IN_ALL'
+<li>OUT_ALL: Total number of bytes read by a function in the application that this function is responsible for producing the value(s) of the byte(s)
+<li>OUT_ALL_UMA: Total number of unique memory addresses used corresponding to 'OUT_ALL'
+</ul>
+
+</ul>
+
+</p>
+
+
+<!--<h3>Authors and Contributors</h3>
+<p align="justify">
+
+</p>-->
+
 
 <h3>Authors and Contributors</h3>
+<p align="justify">
+<ul>
+<li> Arash Ostadzadeh (<a href="https://github.com/arash-ostadzadeh" class="user-mention">@arash-ostadzadeh</a>)
+<li> Roel Meeuws
+<li> Imran Ashraf (<a href="https://github.com/imranashraf" class="user-mention">@imranashraf</a>)
+<li> Vlad Sima (<a href="https://github.com/vladmihaisima" class="user-mention">@vladmihaisima</a>)
+<li> Reinier Hartog (<a href="https://github.com/rmhartog" class="user-mention">@rmhartog</a>)
+</ul>
 
-<p>You can <a href="https://github.com/blog/821" class="user-mention">@mention</a> a GitHub username to generate a link to their profile. The resulting <code>&lt;a&gt;</code> element will link to the contributor's GitHub Profile. For example: In 2007, Chris Wanstrath (<a href="https://github.com/defunkt" class="user-mention">@defunkt</a>), PJ Hyett (<a href="https://github.com/pjhyett" class="user-mention">@pjhyett</a>), and Tom Preston-Werner (<a href="https://github.com/mojombo" class="user-mention">@mojombo</a>) founded GitHub.</p>
+</p>
 
-<h3>Support or Contact</h3>
+			<h3>Support or Contact</h3>
+			<p align="justify">
+			Send email to <a href="mailto:imran.ashraf@ymail.com">Imran Ashraf</a>.
+			</p>
 
-<p>Having trouble with Pages? Check out the documentation at <a href="http://help.github.com/pages">http://help.github.com/pages</a> or contact <a href="mailto:support@github.com">support@github.com</a> and we’ll help you sort it out.</p>
-        </section>
+		</section>
 
         <aside id="sidebar">
           <a href="https://github.com/celabtud/QUAD/zipball/master" class="button">
@@ -66,9 +204,10 @@ $ git checkout gh-pages
             .tar.gz file
           </a>
 
-          <p class="repo-owner"><a href="https://github.com/celabtud/QUAD"></a> is maintained by <a href="https://github.com/celabtud">celabtud</a>.</p>
+          <p class="repo-owner"><a href="https://github.com/celabtud/QUAD"></a> is maintained by <a href="https://github.com/imranashraf">Imran Ashraf</a>.</p>
 
-          <p>This page was generated by <a href="pages.github.com">GitHub Pages</a> using the Architect theme by <a href="http://twitter.com/jasonlong">Jason Long</a>.</p>
+          <p align="justify">This page was generated by <a href="pages.github.com">GitHub Pages</a> using the Architect theme by <a href="http://twitter.com/jasonlong">Jason Long</a>.</p>
+
         </aside>
       </div>
     </div>
