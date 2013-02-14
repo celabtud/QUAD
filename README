@@ -57,6 +57,30 @@ QUADcore Command line Options
 
 Beside the common built-in options for Pin-developed tools, there are some specific command line options available to customize QUADcore. Here is the list:
 
+-dotShowBytes n
+        If n = 0 to disable the printing of 'Bytes' on the edges.
+        If n = 1 enable the printing of 'Bytes' on the edges.
+        Default value:1
+
+-dotShowUnDVs n
+        If n = 0 to disable the printing of 'UnDVs' on the edges.
+        If n = 1 enable the printing of 'UnDVs' on the edges.
+        Default value:1
+
+-dotShowRanges n
+        If n = 0 to disable the printing of 'ranges' on the edges.
+        If n = 1 enable the printing of 'ranges' on the edges.
+        Default value:1
+
+-dotShowRangesLimit n
+        Set dotDotShowRangesLimit to the maximum number of ranges shown
+        on an edge.
+        Default value:3
+
+-bbFuncCount
+        Set to 1 to gather call number statistics and dump them to XML file.
+        Default value:0
+
 -filter_uncommon_functions
         Filter out uncommon function names which are unlikely to be defined by user
         (beginning with question mark, underscore(s), etc.)
