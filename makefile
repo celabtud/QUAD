@@ -59,7 +59,11 @@ ifdef OS
 endif
 
 ifeq ($(TARGET_COMPILER),gnu)
-    include $(PIN_HOME)/source/tools/makefile.gnu.config
+    ifeq ($(wildcard $(PIN_HOME)/source/tools/makefile.gnu.config),)
+      $(error "QUAD was tested with pintools-2.12-55942. Are you using a newer (unsupported version?")
+    else
+      include $(PIN_HOME)/source/tools/makefile.gnu.config
+    endif
     LINKER?=${CXX}
     CXXFLAGS ?= -Wall -Wno-unknown-pragmas $(DBG) $(OPT)
     PIN=$(PIN_HOME)/pin
