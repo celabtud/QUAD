@@ -96,7 +96,7 @@ XMLOBJS = $(Q2XMLSRCS:%.cpp=%.o)
 # RenewalFlags.cpp is directly included in file
 CPPSRCS = BBlock.cpp Utility.cpp
 CPPOBJS = $(CPPSRCS:%.cpp=%.oo)
-CPPFLAGS = -O3
+CPPFLAGS = -O3 -fPIC
 CPPINCS = -I. 
 
 ##############################################################

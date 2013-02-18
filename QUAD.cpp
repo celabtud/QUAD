@@ -450,7 +450,7 @@ static VOID RecordMem(VOID * ip, CHAR r, VOID * addr, INT32 size, BOOL isPrefetc
 
 static VOID RecordMemSP(VOID * ip, VOID * ESP, CHAR r, VOID * addr, INT32 size, BOOL isPrefetch)
 {
-	if(!isPrefetch) // if this is not a prefetch memory access instruction  
+	if(!isPrefetch) // if this is not RecordMemoryAccessa prefetch memory access instruction  
 	{
 		string ftnName=CallStack.top(); //top of the stack is the currently open function
 		
@@ -536,88 +536,96 @@ VOID Instruction(INS ins, VOID *v)
 		//in mechanism. Could be a point for further improvement?! ...
 		INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR)Return, IARG_INST_PTR, IARG_END);
 	}
-
-	if (!Count_Only)
+	
+	if (!Count_Only) //no need to record memory accesses in count only mode
 	{
-		if (!No_Stack_Flag)
+		//Real filter for functions in Monitor List
+		//record memory access by those functions only which are inside the monitor list
+		string currFtnName = CallStack.top();
+		bool inMonitorList = ( ML_OUTPUT.find(currFtnName) != ML_OUTPUT.end() );
+			
+		if( (Monitor_ON == FALSE) || (inMonitorList == TRUE ) )
 		{
-			if (INS_IsMemoryRead(ins) || INS_IsStackRead(ins) )
+			if (!No_Stack_Flag)
 			{
-				INS_InsertPredicatedCall(
-					ins, IPOINT_BEFORE, (AFUNPTR)RecordMem,
-					IARG_INST_PTR,
-					IARG_UINT32, 'R',
-					IARG_MEMORYREAD_EA,
-					IARG_MEMORYREAD_SIZE,
-					IARG_UINT32, INS_IsPrefetch(ins),
-					IARG_END);
-			}
+				if (INS_IsMemoryRead(ins) || INS_IsStackRead(ins) )
+				{
+					INS_InsertPredicatedCall(
+						ins, IPOINT_BEFORE, (AFUNPTR)RecordMem,
+						IARG_INST_PTR,
+						IARG_UINT32, 'R',
+						IARG_MEMORYREAD_EA,
+						IARG_MEMORYREAD_SIZE,
+						IARG_UINT32, INS_IsPrefetch(ins),
+						IARG_END);
+				}
 
-			if (INS_HasMemoryRead2(ins))
-			{
-				INS_InsertPredicatedCall(
-					ins, IPOINT_BEFORE, (AFUNPTR)RecordMem,
-					IARG_INST_PTR,
-					IARG_UINT32, 'R',
-					IARG_MEMORYREAD2_EA,
-					IARG_MEMORYREAD_SIZE,
-					IARG_UINT32, INS_IsPrefetch(ins),
-					IARG_END);
-			}
+				if (INS_HasMemoryRead2(ins))
+				{
+					INS_InsertPredicatedCall(
+						ins, IPOINT_BEFORE, (AFUNPTR)RecordMem,
+						IARG_INST_PTR,
+						IARG_UINT32, 'R',
+						IARG_MEMORYREAD2_EA,
+						IARG_MEMORYREAD_SIZE,
+						IARG_UINT32, INS_IsPrefetch(ins),
+						IARG_END);
+				}
 
-			if (INS_IsMemoryWrite(ins) || INS_IsStackWrite(ins) ) 
+				if (INS_IsMemoryWrite(ins) || INS_IsStackWrite(ins) ) 
+				{
+					INS_InsertPredicatedCall(
+						ins, IPOINT_BEFORE, (AFUNPTR)RecordMem,
+						IARG_INST_PTR,
+						IARG_UINT32, 'W',
+						IARG_MEMORYWRITE_EA,
+						IARG_MEMORYWRITE_SIZE,
+						IARG_UINT32, INS_IsPrefetch(ins),
+						IARG_END);
+				}
+			} // end of Stack is ok!
+			else  // ignore stack access
 			{
+				if (INS_IsMemoryRead(ins) )
+				{
 				INS_InsertPredicatedCall(
-					ins, IPOINT_BEFORE, (AFUNPTR)RecordMem,
-					IARG_INST_PTR,
-					IARG_UINT32, 'W',
-					IARG_MEMORYWRITE_EA,
-					IARG_MEMORYWRITE_SIZE,
-					IARG_UINT32, INS_IsPrefetch(ins),
-					IARG_END);
-			}
-		} // end of Stack is ok!
-		else  // ignore stack access
-		{
-			if (INS_IsMemoryRead(ins) )
-			{
-			INS_InsertPredicatedCall(
-					ins, IPOINT_BEFORE, (AFUNPTR)RecordMemSP,
-					IARG_INST_PTR,
-					IARG_REG_VALUE, REG_STACK_PTR,
-					IARG_UINT32, 'R',
-					IARG_MEMORYREAD_EA,
-					IARG_MEMORYREAD_SIZE,
-					IARG_UINT32, INS_IsPrefetch(ins),
-					IARG_END);
-			}
+						ins, IPOINT_BEFORE, (AFUNPTR)RecordMemSP,
+						IARG_INST_PTR,
+						IARG_REG_VALUE, REG_STACK_PTR,
+						IARG_UINT32, 'R',
+						IARG_MEMORYREAD_EA,
+						IARG_MEMORYREAD_SIZE,
+						IARG_UINT32, INS_IsPrefetch(ins),
+						IARG_END);
+				}
 
-			if (INS_HasMemoryRead2(ins))
-			{
-				INS_InsertPredicatedCall(
-					ins, IPOINT_BEFORE, (AFUNPTR)RecordMemSP,
-					IARG_INST_PTR,
-					IARG_REG_VALUE, REG_STACK_PTR,
-					IARG_UINT32, 'R',
-					IARG_MEMORYREAD2_EA,
-					IARG_MEMORYREAD_SIZE,
-					IARG_UINT32, INS_IsPrefetch(ins),
-					IARG_END);
-			}
+				if (INS_HasMemoryRead2(ins))
+				{
+					INS_InsertPredicatedCall(
+						ins, IPOINT_BEFORE, (AFUNPTR)RecordMemSP,
+						IARG_INST_PTR,
+						IARG_REG_VALUE, REG_STACK_PTR,
+						IARG_UINT32, 'R',
+						IARG_MEMORYREAD2_EA,
+						IARG_MEMORYREAD_SIZE,
+						IARG_UINT32, INS_IsPrefetch(ins),
+						IARG_END);
+				}
 
-			if (INS_IsMemoryWrite(ins)) 
-			{
-				INS_InsertPredicatedCall(
-					ins, IPOINT_BEFORE, (AFUNPTR)RecordMemSP,
-					IARG_INST_PTR,
-					IARG_REG_VALUE, REG_STACK_PTR,
-					IARG_UINT32, 'W',
-					IARG_MEMORYWRITE_EA,
-					IARG_MEMORYWRITE_SIZE,
-					IARG_UINT32, INS_IsPrefetch(ins),
-					IARG_END);
-			}
-		} // end of ignore stack 
+				if (INS_IsMemoryWrite(ins)) 
+				{
+					INS_InsertPredicatedCall(
+						ins, IPOINT_BEFORE, (AFUNPTR)RecordMemSP,
+						IARG_INST_PTR,
+						IARG_REG_VALUE, REG_STACK_PTR,
+						IARG_UINT32, 'W',
+						IARG_MEMORYWRITE_EA,
+						IARG_MEMORYWRITE_SIZE,
+						IARG_UINT32, INS_IsPrefetch(ins),
+						IARG_END);
+				}
+			} // end of ignore stack 
+		}
 	}
 }
 
@@ -685,12 +693,21 @@ int main(int argc, char *argv[])
 
 	if (!Count_Only)
 	{
+		// ------------------ basic block file processing ----------------------------------
 		if(BBMODE)
 		{
 			//initialize the basic blocks from file specified
 			bblist.initFromFile(bbFileName);
 		}
-	
+		// ----------------------------------------------------------------------------------
+		
+		// ------------------ XML file pre-processing ---------------------------------------   
+		string ns("q2:");
+		string fileName("q2profiling.xml");
+		q2xml = new Q2XMLFile(fileName,ns,applicationName);
+		// ----------------------------------------------------------------------------------
+
+		// ------------------ Monitorlist file processing -----------------------------------
 		// parse the command line arguments for the main image name and the status of the monitorlist flag
 		for (int i=1;i<argc-1;i++)
 		{
@@ -705,17 +722,10 @@ int main(int argc, char *argv[])
 		}
 		strcpy(main_image_name,StripPath(temp));
 
-		// ------------------ XML file pre-processing ---------------------------------------   
-		string ns("q2:");
-		string fileName("q2profiling.xml");
-		q2xml = new Q2XMLFile(fileName,ns,applicationName);
-		// ------------------ Monitorlist file processing ---------------------------------------   
 		if (Monitor_ON)  // user is interested in filtering out 
 		{
 			ifstream monitorin;
-		
 			monitorin.open(monitorfilename.c_str());
-		
 			if (!monitorin)
 			{
 				cerr<<"\nCan not open the monitor list file ("<<monitorfilename.c_str()<<")... Aborting!\n";
@@ -749,7 +759,7 @@ int main(int argc, char *argv[])
 		
 			} while(1);	
 
-			monitorin.close();	    
+			monitorin.close();
 		}    
 		// -----------------------------------------------------------------------------------------   
 
@@ -774,9 +784,12 @@ int main(int argc, char *argv[])
 		elf = elf_begin(elf_fd, ELF_C_READ ,NULL);
 		// We read the symbol array
 
-		if(elf==NULL) {
+		if(elf==NULL) 
+		{
 			printf("ERROR: ELF loading failed: %s",elf_errmsg(-1));
-		} else {
+		} 
+		else 
+		{
 			Elf_Scn *scn;
 			int symbol_count, i;
 			Elf_Data *edata =NULL;
@@ -784,24 +797,30 @@ int main(int argc, char *argv[])
 			GElf_Sym sym;
 			scn = NULL; 
 			
-			if (Verbose_ON) {
+			if (Verbose_ON) 
+			{
 				printf("  QUAD global variable detection enabled\n");
 			}
-			while ((scn = elf_nextscn(elf, scn)) != NULL) { 
+			while ((scn = elf_nextscn(elf, scn)) != NULL) 
+			{ 
 				if (gelf_getshdr(scn, &shdr) != &shdr)
 					printf( "getshdr() failed: %s.", elf_errmsg(-1));
-				if(shdr.sh_type == SHT_SYMTAB) {
+				if(shdr.sh_type == SHT_SYMTAB) 
+				{
 					edata = elf_getdata(scn, edata);
 					symbol_count = shdr.sh_size / shdr.sh_entsize;
 					
 					// loop through to grab all symbols
-					for(i = 0; i < symbol_count; i++) {
+					for(i = 0; i < symbol_count; i++) 
+					{
 						// libelf grabs the symbol data using gelf_getsym()
 						gelf_getsym(edata, i, &sym);
 						
 						if(ELF32_ST_BIND(sym.st_info)==STB_GLOBAL &&
-						  ELF32_ST_TYPE(sym.st_info)==STT_OBJECT && sym.st_size>0) {
-							if (Verbose_ON) {
+						  ELF32_ST_TYPE(sym.st_info)==STT_OBJECT && sym.st_size>0) 
+						{
+							if (Verbose_ON) 
+							{
 								printf("    Symbol name %s (%08x %08d)\n",
 								  elf_strptr(elf, shdr.sh_link, sym.st_name),
 								  (int)sym.st_value, (int)sym.st_size);

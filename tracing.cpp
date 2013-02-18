@@ -331,7 +331,8 @@ void recTrieTraverse(struct trieNode* current,int level)
 						break;
 				}	
 				
-				if(IsNewFunc( temp->producer ) ) {
+				if(IsNewFunc( temp->producer ) ) 
+				{
 					fprintf(gfp,"\"%08x\" [label=\"%s", (unsigned int)temp->producer, prodName.c_str());
 					if(KnobBBFuncCount.Value()==TRUE) { 
 						fprintf(gfp," count:%d", FunctionToCount[NameToFunction[prodName]]);
@@ -339,7 +340,8 @@ void recTrieTraverse(struct trieNode* current,int level)
 					fprintf(gfp,"\"];\n");
 				}
 
-				if(IsNewFunc( temp->consumer ) ) {
+				if(IsNewFunc( temp->consumer ) ) 
+				{
 					fprintf(gfp,"\"%08x\" [label=\"%s", (unsigned int)temp->consumer, consName.c_str());
 					if(KnobBBFuncCount.Value()==TRUE) { 
 						fprintf(gfp," count:%d", FunctionToCount[NameToFunction[consName]]);
@@ -353,21 +355,25 @@ void recTrieTraverse(struct trieNode* current,int level)
 				unsigned long int unma = temp->UniqueMemCells->size();
 				float unmaPerCall = 0;
 				if(KnobBBFuncCount.Value()==TRUE && 
-				  FunctionToCount[NameToFunction[consName]]>0) {
+				  FunctionToCount[NameToFunction[consName]]>0) 
+				{
 					unmaPerCall = ((float)unma/FunctionToCount[NameToFunction[consName]]);
 				};
 				
 				fprintf(gfp,"\"%08x\" -> \"%08x\"  [label=",(unsigned int)temp->producer,(unsigned int)temp->consumer);
-				if(KnobDotShowBytes.Value()==TRUE) {
+				if(KnobDotShowBytes.Value()==TRUE) 
+				{
 					fprintf(gfp,"\"%llu Bytes\\n",temp->data_exchange);
 				}
 				fprintf(gfp,"%lu UnMAs \\n",unma);
 				if(KnobBBFuncCount.Value()==TRUE && 
-				  FunctionToCount[NameToFunction[consName]]>0) {
+				  FunctionToCount[NameToFunction[consName]]>0) 
+				{
 					fprintf(gfp,"%8.3f UnMAs/call\\n",unmaPerCall);
 				}
 
-				if(KnobDotShowUnDVs.Value()==TRUE) {
+				if(KnobDotShowUnDVs.Value()==TRUE) 
+				{
 					fprintf(gfp,"%llu UnDVs\\n",temp->UniqueValues);
 				}
 				
@@ -377,16 +383,20 @@ void recTrieTraverse(struct trieNode* current,int level)
 				set2ranges(temp->UniqueMemCells, ranges);
 				q2xml->insertChannel(new Channel(prodName,consName,ranges,temp->UniqueMemCells->size(),temp->data_exchange,temp->UniqueValues));
 
-				if(KnobDotShowRanges.Value()==TRUE) {
+				if(KnobDotShowRanges.Value()==TRUE) 
+				{
 					vector<Range>::iterator it = ranges.begin();
 					int crt=0;
-					while(it!=ranges.end()) {
+					while(it!=ranges.end()) 
+					{
 						fprintf(gfp,"(%8x-%8x)",(*it).lower,(*it).upper);
 #ifdef QUAD_LIBELF
 						map<string,GlobalSymbol*>::iterator its = globalSymbols.begin();
-						while(its!=globalSymbols.end()) {
+						while(its!=globalSymbols.end()) 
+						{
 							if(its->second->start<=it->lower &&
-							  its->second->start+its->second->size>=it->upper) {
+							  its->second->start+its->second->size>=it->upper) 
+							{
 								fprintf(gfp," from %s (%2.1f%%)",its->first.c_str(),
 								  its->second->size!=0?((it->upper-it->lower+1)/(float)its->second->size)*100:100);
 								break;
@@ -397,12 +407,14 @@ void recTrieTraverse(struct trieNode* current,int level)
 						fprintf(gfp,"\\n");
 						it++;
 						crt++;
-						if(KnobDotShowRangesLimit.Value()<crt+1) {
+						if(KnobDotShowRangesLimit.Value()<crt+1) 
+						{
 							break;
 						}
 					}
 					
-					if(it!=ranges.end()) {
+					if(it!=ranges.end()) 
+					{
 						fprintf(gfp," and other...\\n");
 					}
 				}
@@ -457,7 +469,6 @@ int CreateDSGraphFile()
    
    cerr << "writing <QUAD> in the XML file ...\n";
    
-   
 	try
 	{
 		q2xml->save();
@@ -468,11 +479,11 @@ int CreateDSGraphFile()
 		cerr << ex.what();
 	}
    
-   
-   delete q2xml;   
+   delete q2xml;
    fclose(gfp);	
    return 0;
-}                                               
+}
+
 //------------------------------------------------------------------------------------------
 int RecordCommunicationInDSGraph(ADDRINT producer, ADDRINT consumer, ADDRINT locAddr, struct trieNode * currentLPold)
 {
