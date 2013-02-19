@@ -79,6 +79,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <stack>
 #include <set>
 #include <map>
+#include <algorithm>
 
 #include "Channel.h"
 #include "Exception.h"
@@ -133,7 +134,6 @@ class GlobalSymbol {
 
 map <string, GlobalSymbol*> globalSymbols;
 
-
 stack <string> CallStack; // our own virtual Call Stack to trace function call
 
 set<string> SeenFname;
@@ -146,15 +146,12 @@ UINT32 Progress_M_Ins=0;
 UINT32 Percentage=0;
 
 BOOL Count_Only = FALSE;
-
 BOOL Monitor_ON = FALSE;
 BOOL Include_External_Images=FALSE; // a flag showing our interest to trace functions which are not included in the main image file
-
+BOOL Select_Instr_ON = FALSE;
 BOOL Uncommon_Functions_Filter=TRUE;
-
 BOOL No_Stack_Flag = FALSE;   // a flag showing our interest to include or exclude stack memory accesses in analysis. The default value indicates tracing also the stack accesses. Can be modified by 'ignore_stack_access' command line switch
 BOOL Verbose_ON = FALSE;  // a flag showing the interest to print something when the tool is running or not!
-
 BOOL BBMODE = FALSE;
 
 // A mapping between the name used and the functions names. This is needed
@@ -180,7 +177,7 @@ typedef struct
 TTL_ML_Data_Pack ;
    
 map <string,TTL_ML_Data_Pack *> ML_OUTPUT ;  // used to maintain info regarding monitor list statistics
-
+vector <string> SIFL_OUTPUT;	//used to maintain selected instrument functions names
 char fileName[FILENAME_MAX];
 char cCurrentPath[FILENAME_MAX];
 /* ===================================================================== */
@@ -229,7 +226,10 @@ KNOB<string> KnobElf(KNOB_MODE_WRITEONCE, "pintool",
 
 KNOB<string> KnobMonitorList(KNOB_MODE_WRITEONCE, "pintool", 
 	"use_monitor_list","", "Create output report files only for certain function(s) in the application and filter out the rest (the functions are listed in a text file whose name follows)");
-	
+
+KNOB<string> KnobInstrumentSelectedFtns(KNOB_MODE_WRITEONCE, "pintool", 
+	 "instrument_selected_functions","", "Instrument only the selected function(s) (the functions are listed in a text file whose name follows)");
+								 
 KNOB<BOOL> KnobIgnoreStackAccess(KNOB_MODE_WRITEONCE, "pintool",
 	"ignore_stack_access","0", "Ignore memory accesses within application's stack region");
 
@@ -257,7 +257,7 @@ VOID EnterFC(char *name,bool flag)
 	{
 		if	(
 			//commented the following as the functions in libraries were needed (e.g. in KLT)
-			name[0]=='_' ||
+// 			name[0]=='_' ||
 			name[0]=='?' ||
 			!strcmp(name,"GetPdbDll") || 
 			!strcmp(name,"DebuggerRuntime") || 
@@ -280,7 +280,7 @@ VOID EnterFC(char *name,bool flag)
 	{
 		if  (
 			//commented the following as the functions in libraries were needed (e.g. in KLT)
-			name[0]=='_' || 
+// 			name[0]=='_' || 
 			name[0]=='?' || 
 			name[0]=='.' ||
 			!strcmp(name,"call_gmon_start") || 
@@ -311,7 +311,7 @@ VOID EnterFC_EXTERNAL_OK(char *name)
 	if (Uncommon_Functions_Filter)
 	{
 		if	(		
-			name[0]=='_' ||
+// 			name[0]=='_' ||
 			name[0]=='?' ||
 			!strcmp(name,"GetPdbDll") || 
 			!strcmp(name,"DebuggerRuntime") || 
@@ -333,7 +333,7 @@ VOID EnterFC_EXTERNAL_OK(char *name)
 	if (Uncommon_Functions_Filter)
 	{
  		if(
-			name[0]=='_' || 
+// 			name[0]=='_' || 
 			name[0]=='?' ||
 			name[0]=='.' ||
 			!strcmp(name,"call_gmon_start") || 
@@ -542,9 +542,9 @@ VOID Instruction(INS ins, VOID *v)
 		//Real filter for functions in Monitor List
 		//record memory access by those functions only which are inside the monitor list
 		string currFtnName = CallStack.top();
-		bool inMonitorList = ( ML_OUTPUT.find(currFtnName) != ML_OUTPUT.end() );
+		bool inSIFList = ( std::find(SIFL_OUTPUT.begin(), SIFL_OUTPUT.end(), currFtnName) != SIFL_OUTPUT.end() );
 			
-		if( (Monitor_ON == FALSE) || (inMonitorList == TRUE ) )
+		if( (Select_Instr_ON == FALSE) || (inSIFList == TRUE ) )
 		{
 			if (!No_Stack_Flag)
 			{
@@ -651,7 +651,7 @@ int main(int argc, char *argv[])
 	strcat(fileName, fileNameOnly);
 	
 	cerr << endl << "Initializing QUAD framework..." << endl;
-	string xmlfilename,monitorfilename,bbFileName;
+	string xmlfilename,monitorfilename,bbFileName,selInstrfilename;
 	string applicationName;
 	char temp[100];
 
@@ -687,6 +687,7 @@ int main(int argc, char *argv[])
 	
 	No_Stack_Flag=KnobIgnoreStackAccess.Value(); // Stack access ok or not?
 	monitorfilename=KnobMonitorList.Value(); // this is the name of the monitorlist file to use
+	selInstrfilename=KnobInstrumentSelectedFtns.Value(); // this is the name of the file to use for selected instrumentation
 	Uncommon_Functions_Filter=KnobIgnoreUncommonFNames.Value(); // interested in uncommon function names or not?
 	Include_External_Images=KnobIncludeExternalImages.Value(); // include/exclude external image files?
 	Verbose_ON=KnobVerbose_ON.Value();  // print something or not during execution
@@ -707,12 +708,14 @@ int main(int argc, char *argv[])
 		q2xml = new Q2XMLFile(fileName,ns,applicationName);
 		// ----------------------------------------------------------------------------------
 
-		// ------------------ Monitorlist file processing -----------------------------------
 		// parse the command line arguments for the main image name and the status of the monitorlist flag
 		for (int i=1;i<argc-1;i++)
 		{
 			if (!strcmp(argv[i],"-use_monitor_list") ) 
 				Monitor_ON = TRUE;
+			
+			if (!strcmp(argv[i],"-instrument_selected_functions") ) 
+				Select_Instr_ON = TRUE;
 		
 			if (!strcmp(argv[i],"--")) 
 			{
@@ -721,7 +724,28 @@ int main(int argc, char *argv[])
 			}   
 		}
 		strcpy(main_image_name,StripPath(temp));
-
+		
+		// ------------------ Selected Instrumentation file processing -----------------------------------
+		if(Select_Instr_ON)
+		{
+			string item;
+			ifstream selfilterin;
+			selfilterin.open(selInstrfilename.c_str());
+			if (!selfilterin)
+			{
+				cerr<<"\nCan not open the selected instrumentation function list file ("<<selInstrfilename.c_str()<<")... Aborting!\n";
+				return 4;
+			}
+			
+			while( ! (selfilterin.eof()) )
+			{
+				selfilterin>>item;	// get the next function name in the monitor list
+				SIFL_OUTPUT.push_back(item);
+			}
+			selfilterin.close();
+		}
+		
+		// ------------------ Monitorlist file processing -----------------------------------
 		if (Monitor_ON)  // user is interested in filtering out 
 		{
 			ifstream monitorin;
