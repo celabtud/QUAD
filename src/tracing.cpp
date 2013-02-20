@@ -461,7 +461,8 @@ int CreateDSGraphFile()
    fprintf(gfp,"digraph {\ngraph [];\nnode [fontcolor=black, style=filled, fontsize=20];\nedge [fontsize=14, arrowhead=vee, arrowsize=0.5];\n");
 
    cerr << "writing QDU graph..." << endl; 
-   recTrieTraverse(graphRoot,0);
+   if(graphRoot)
+		recTrieTraverse(graphRoot,0);
 
    /* write epilogue */
    cerr << "writing QDU graph epilogue..." << endl; 

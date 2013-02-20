@@ -257,7 +257,7 @@ VOID EnterFC(char *name,bool flag)
 	{
 		if	(
 			//commented the following as the functions in libraries were needed (e.g. in KLT)
-// 			name[0]=='_' ||
+			name[0]=='_' ||
 			name[0]=='?' ||
 			!strcmp(name,"GetPdbDll") || 
 			!strcmp(name,"DebuggerRuntime") || 
@@ -280,7 +280,7 @@ VOID EnterFC(char *name,bool flag)
 	{
 		if  (
 			//commented the following as the functions in libraries were needed (e.g. in KLT)
-// 			name[0]=='_' || 
+			name[0]=='_' || 
 			name[0]=='?' || 
 			name[0]=='.' ||
 			!strcmp(name,"call_gmon_start") || 
@@ -311,7 +311,7 @@ VOID EnterFC_EXTERNAL_OK(char *name)
 	if (Uncommon_Functions_Filter)
 	{
 		if	(		
-// 			name[0]=='_' ||
+			name[0]=='_' ||
 			name[0]=='?' ||
 			!strcmp(name,"GetPdbDll") || 
 			!strcmp(name,"DebuggerRuntime") || 
@@ -333,7 +333,7 @@ VOID EnterFC_EXTERNAL_OK(char *name)
 	if (Uncommon_Functions_Filter)
 	{
  		if(
-// 			name[0]=='_' || 
+			name[0]=='_' || 
 			name[0]=='?' ||
 			name[0]=='.' ||
 			!strcmp(name,"call_gmon_start") || 
@@ -707,16 +707,14 @@ int main(int argc, char *argv[])
 		string fileName("q2profiling.xml");
 		q2xml = new Q2XMLFile(fileName,ns,applicationName);
 		// ----------------------------------------------------------------------------------
-
-		// parse the command line arguments for the main image name and the status of the monitorlist flag
+		
+		// ------------------ flag setting and image name ------------------------------------   
+		Monitor_ON = !monitorfilename.empty();	//set the flag if monitor file is specified
+		Select_Instr_ON = !selInstrfilename.empty(); //set the flag if selected instrumentation file is specified
+		
+		// parse the command line arguments for the main image name
 		for (int i=1;i<argc-1;i++)
 		{
-			if (!strcmp(argv[i],"-use_monitor_list") ) 
-				Monitor_ON = TRUE;
-			
-			if (!strcmp(argv[i],"-instrument_selected_functions") ) 
-				Select_Instr_ON = TRUE;
-		
 			if (!strcmp(argv[i],"--")) 
 			{
 				strcpy(temp,argv[i+1]);
@@ -724,11 +722,13 @@ int main(int argc, char *argv[])
 			}   
 		}
 		strcpy(main_image_name,StripPath(temp));
+		// ----------------------------------------------------------------------------------
 		
 		// ------------------ Selected Instrumentation file processing -----------------------------------
 		if(Select_Instr_ON)
 		{
 			string item;
+			int itemCount=0;	//count of the items on list, to give a warning in case its empty
 			ifstream selfilterin;
 			selfilterin.open(selInstrfilename.c_str());
 			if (!selfilterin)
@@ -740,7 +740,17 @@ int main(int argc, char *argv[])
 			while( ! (selfilterin.eof()) )
 			{
 				selfilterin>>item;	// get the next function name in the monitor list
-				SIFL_OUTPUT.push_back(item);
+				if( !item.empty() )
+				{
+					SIFL_OUTPUT.push_back(item);
+					itemCount++;
+				}
+			}
+			if(itemCount == 0)
+			{
+				cerr<<"\nSpecified selected instrumentation function list file ("<<selInstrfilename.c_str()<<") is empty\n"
+					<<"Specify at least 1 function in the list... Aborting!\n";
+				return 4;
 			}
 			selfilterin.close();
 		}
@@ -758,31 +768,40 @@ int main(int argc, char *argv[])
 		
 			TTL_ML_Data_Pack * DPP;
 			string item;
-
-			do
+			int itemCount=0;	//count of the items on list, to give a warning in case its empty
+			while(!monitorin.eof())
 			{
 				monitorin>>item;	// get the next function name in the monitor list
-				if (monitorin.eof()) break;	// oops we are finished!
-				DPP=new TTL_ML_Data_Pack;
-				if (!DPP) 
+				if (!item.empty())
 				{
-					cerr<<"\nMemory allocation failure in monitor list construction... Aborting!\n";
-					return 5;
+					
+					DPP=new TTL_ML_Data_Pack;
+					if (!DPP) 
+					{
+						cerr<<"\nMemory allocation failure in monitor list construction... Aborting!\n";
+						return 5;
+					}
+				
+					DPP->total_IN_ML=0;
+					DPP->total_OUT_ML=0;
+					DPP->total_IN_ML_UMA=0;
+					DPP->total_OUT_ML_UMA=0;
+					DPP->total_IN_ALL=0;
+					DPP->total_OUT_ALL=0;
+					DPP->total_IN_ALL_UMA=0;
+					DPP->total_OUT_ALL_UMA=0;
+				
+					ML_OUTPUT[item]=DPP;
+					itemCount++;
 				}
+			}
 			
-				DPP->total_IN_ML=0;
-				DPP->total_OUT_ML=0;
-				DPP->total_IN_ML_UMA=0;
-				DPP->total_OUT_ML_UMA=0;
-				DPP->total_IN_ALL=0;
-				DPP->total_OUT_ALL=0;
-				DPP->total_IN_ALL_UMA=0;
-				DPP->total_OUT_ALL_UMA=0;
-			
-				ML_OUTPUT[item]=DPP;
-		
-			} while(1);	
-
+			if(itemCount == 0)
+			{
+				cerr<<"\nSpecified Monitor list file ("<<selInstrfilename.c_str()<<") is empty\n"
+					<<"Specify at least 1 function in the list... Aborting!\n";
+				return 4;
+			}
 			monitorin.close();
 		}    
 		// -----------------------------------------------------------------------------------------   
