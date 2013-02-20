@@ -115,7 +115,6 @@ THE POSSIBILITY OF SUCH DAMAGE.
 /* ===================================================================== */
 /* Global Variables */
 /* ===================================================================== */
-
 Q2XMLFile *q2xml; // also used in Tracing.cpp
 BBList bblist;		//list of BBlocks
 
@@ -215,14 +214,13 @@ KNOB<int> KnobDotShowRangesLimit(KNOB_MODE_WRITEONCE, "pintool",
 	"dotShowRangesLimit","3", "Set dotDotShowRangesLimit to the maximum number of ranges you want to show.");
 
 KNOB<string> KnobXML(KNOB_MODE_WRITEONCE, "pintool",
-	"xmlfile","dek_arch.xml", "Specify file name for output data in XML format");
+	"xmlfile","q2profiling.xml", "Specify file name for output data in XML format (default q2profiling.xml)");
 
 KNOB<string> KnobApplication(KNOB_MODE_WRITEONCE, "pintool", 
-	"applic","", "Specify application name for XML file format");
+	"applic","testAPPlication", "Specify application name for XML file format (default testAPPlication)");
 
-// TODO: This should be determined automatically (vladms)
-KNOB<string> KnobElf(KNOB_MODE_WRITEONCE, "pintool", 
-	"elf","", "Specify the name of the elf file (this works only if libelf support is compiled in QUAD).");
+KNOB<BOOL> KnobElf(KNOB_MODE_WRITEONCE, "pintool", 
+	"elf","0", "Set to 1 to enable variable names from elf file (this works only if libelf support is compiled in QUAD).");
 
 KNOB<string> KnobMonitorList(KNOB_MODE_WRITEONCE, "pintool", 
 	"use_monitor_list","", "Create output report files only for certain function(s) in the application and filter out the rest (the functions are listed in a text file whose name follows)");
@@ -450,10 +448,13 @@ static VOID RecordMem(VOID * ip, CHAR r, VOID * addr, INT32 size, BOOL isPrefetc
 
 static VOID RecordMemSP(VOID * ip, VOID * ESP, CHAR r, VOID * addr, INT32 size, BOOL isPrefetch)
 {
-	if(!isPrefetch) // if this is not RecordMemoryAccessa prefetch memory access instruction  
+	if(!isPrefetch) // if this is not a prefetch memory access instruction  
 	{
+		if (addr >= ESP) return;  // if we are reading from the stack range, ignore this access
+
 		string ftnName=CallStack.top(); //top of the stack is the currently open function
 		
+		//TODO: Add this BBMODE support for RecordMem function as well
 		if(BBMODE)
 		{
 			string filename;    // This will hold the source file name.
@@ -472,8 +473,6 @@ static VOID RecordMemSP(VOID * ip, VOID * ESP, CHAR r, VOID * addr, INT32 size, 
 			}
 		}
 		
-		if (addr >= ESP) return;  // if we are reading from the stack range, ignore this access
-
 		if(!SeenFname.count(ftnName))  // this is the first time I see this function name in charge of access
 		{
 			SeenFname.insert(ftnName);  // mark this function name as seen
@@ -525,22 +524,13 @@ VOID IncreaseTotalInstCounter()
 // Is called for every instruction and instruments reads and writes and the Ret instruction
 VOID Instruction(INS ins, VOID *v)
 {
-	
+	//TODO: this should not be here as it will be an overhead even if we dont want to show progress
 	INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)IncreaseTotalInstCounter, IARG_END);
 
-	if (INS_IsRet(ins))  	
-	{
-		// we are monitoring the 'ret' instructions since we need to know when we are leaving functions 
-		//in order to update our own virtual 'Call Stack'. The mechanism to inject instrumentation code 
-		//to update the Call Stack (pop) upon leave is not implemented directly contrary to the dive 
-		//in mechanism. Could be a point for further improvement?! ...
-		INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR)Return, IARG_INST_PTR, IARG_END);
-	}
-	
 	if (!Count_Only) //no need to record memory accesses in count only mode
 	{
 		//Real filter for functions in Monitor List
-		//record memory access by those functions only which are inside the monitor list
+		//record memory access by those functions only which are inside the selected instrumentation function list
 		string currFtnName = CallStack.top();
 		bool inSIFList = ( std::find(SIFL_OUTPUT.begin(), SIFL_OUTPUT.end(), currFtnName) != SIFL_OUTPUT.end() );
 			
@@ -627,6 +617,16 @@ VOID Instruction(INS ins, VOID *v)
 			} // end of ignore stack 
 		}
 	}
+	
+	if (INS_IsRet(ins))  	
+	{
+		// we are monitoring the 'ret' instructions since we need to know when we are leaving functions 
+		//in order to update our own virtual 'Call Stack'. The mechanism to inject instrumentation code 
+		//to update the Call Stack (pop) upon leave is not implemented directly contrary to the dive 
+		//in mechanism. Could be a point for further improvement?! ...
+		INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR)Return, IARG_INST_PTR, IARG_END);
+	}
+
 }
 
 /* ===================================================================== */
@@ -643,13 +643,6 @@ const char * StripPath(const char * path)
 
 int main(int argc, char *argv[])
 {
-	char fileNameOnly[FILENAME_MAX]="test.c";
-	if (!GetCurrentDir(fileName, sizeof(fileName) ) )
-		return -1;
-	
-	strcat(fileName, "/");
-	strcat(fileName, fileNameOnly);
-	
 	cerr << endl << "Initializing QUAD framework..." << endl;
 	string xmlfilename,monitorfilename,bbFileName,selInstrfilename;
 	string applicationName;
@@ -674,7 +667,7 @@ int main(int argc, char *argv[])
 	Progress_M_Ins = KnobProgress_M_Ins.Value();
 	Progress_Ins = KnobProgress_Ins.Value();
 #ifndef QUAD_LIBELF
-	if(KnobElf.Value().size()>0) {
+	if(KnobElf.Value()) {
 		printf("ERROR: Trying to use Elf file option when libelf support not compiled in QUAD\n");
 	}
 #endif
@@ -704,8 +697,7 @@ int main(int argc, char *argv[])
 		
 		// ------------------ XML file pre-processing ---------------------------------------   
 		string ns("q2:");
-		string fileName("q2profiling.xml");
-		q2xml = new Q2XMLFile(fileName,ns,applicationName);
+		q2xml = new Q2XMLFile(xmlfilename,ns,applicationName);
 		// ----------------------------------------------------------------------------------
 		
 		// ------------------ flag setting and image name ------------------------------------   
@@ -816,9 +808,9 @@ int main(int argc, char *argv[])
 	cerr << "Starting the application to be analysed..." << endl;
 
 #ifdef QUAD_LIBELF
-	if(KnobElf.Value().size()>0) {
-
-		int elf_fd = open(KnobElf.Value().c_str(),O_RDONLY);
+	if(KnobElf.Value()) {
+		string elfName(main_image_name);
+		int elf_fd = open(elfName.c_str(),O_RDONLY);
 		Elf* elf;
 		if (elf_version(EV_CURRENT) == EV_NONE) {
 			printf("ERROR: ELF library initialization failed: %s",elf_errmsg(-1));
