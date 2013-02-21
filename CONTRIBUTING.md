@@ -1,5 +1,5 @@
 # Developer Guidelines
-(Please talk to people on the mailing list before you change this page, see our section on [how to get in touch](https://github.com/ether/etherpad-lite#get-in-touch))
+(Please talk to people on the mailing list before you change this page, see our section on [how to get in touch](https://github.com/celabtud/QUAD#get-in-touch))
 
 ## Important note for pull requests
 **Pull requests should issued against the develop branch**.  We never pull directly into master.
@@ -32,7 +32,7 @@ To make sure everybody is going in the same direction:
 * If you do make changes, document them! (see below)
 
 ## Branching model / git workflow
-see git flow http://nvie.com/posts/a-successful-git-branching-model/
+see [git flow](http://nvie.com/posts/a-successful-git-branching-model)
 
 ### `master` branch
 * the stable
@@ -42,7 +42,7 @@ see git flow http://nvie.com/posts/a-successful-git-branching-model/
 * everything that is READY to go into master at some point in time
 * This stuff is tested and ready to go out
 
-### release branches
+### `release` branches
 * stuff that should go into master very soon
 * only bugfixes go into these (see http://nvie.com/posts/a-successful-git-branching-model/ for why)
 * we should not be blocking new features to develop, just because we feel that we should be releasing it to master soon. This is the situation that release branches solve/handle.
