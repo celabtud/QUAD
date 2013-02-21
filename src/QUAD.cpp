@@ -423,38 +423,17 @@ VOID Fini(INT32 code, VOID *v)
 
 /* ===================================================================== */
 
-static VOID RecordMem(VOID * ip, CHAR r, VOID * addr, INT32 size, BOOL isPrefetch)
+static VOID RecordMem(VOID * ip, VOID * ESP, CHAR r, VOID * addr, INT32 size, BOOL isPrefetch)
 {
 	if(!isPrefetch) // if this is not a prefetch memory access instruction  
 	{
-		string ftnName=CallStack.top();
-		if(!SeenFname.count(ftnName))  // this is the first time I see this function name in charge of access
+		if(No_Stack_Flag)
 		{
-			SeenFname.insert(ftnName);  // mark this function name as seen
-			GlobalfunctionNo++;      // create a dummy Function Number for this function
-			NametoADD[ftnName]=GlobalfunctionNo;   // create the string -> Number binding
-			ADDtoName[GlobalfunctionNo]=ftnName;   // create the Number -> String binding
-		} 
-		
-		for(int i=0;i<size;i++)
-		{
-			RecordMemoryAccess((ADDRINT)addr,NametoADD[ftnName],r=='W');
-			addr=((char *)addr)+1;  // cast not needed anyway!
-		}//end for
-	}// end of not a prefetch
-}
-
-/* ===================================================================== */
-
-static VOID RecordMemSP(VOID * ip, VOID * ESP, CHAR r, VOID * addr, INT32 size, BOOL isPrefetch)
-{
-	if(!isPrefetch) // if this is not a prefetch memory access instruction  
-	{
-		if (addr >= ESP) return;  // if we are reading from the stack range, ignore this access
+			if (addr >= ESP) return;  // if we are reading from the stack range, ignore this access
+		}
 
 		string ftnName=CallStack.top(); //top of the stack is the currently open function
 		
-		//TODO: Add this BBMODE support for RecordMem function as well
 		if(BBMODE)
 		{
 			string filename;    // This will hold the source file name.
@@ -525,6 +504,7 @@ VOID IncreaseTotalInstCounter()
 VOID Instruction(INS ins, VOID *v)
 {
 	//TODO: this should not be here as it will be an overhead even if we dont want to show progress
+	// a flag can be set to see if we need progress reporting or not
 	INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)IncreaseTotalInstCounter, IARG_END);
 
 	if (!Count_Only) //no need to record memory accesses in count only mode
@@ -536,85 +516,50 @@ VOID Instruction(INS ins, VOID *v)
 			
 		if( (Select_Instr_ON == FALSE) || (inSIFList == TRUE ) )
 		{
-			if (!No_Stack_Flag)
+			if (INS_IsMemoryRead(ins) || INS_IsStackRead(ins) )
 			{
-				if (INS_IsMemoryRead(ins) || INS_IsStackRead(ins) )
-				{
-					INS_InsertPredicatedCall(
-						ins, IPOINT_BEFORE, (AFUNPTR)RecordMem,
-						IARG_INST_PTR,
-						IARG_UINT32, 'R',
-						IARG_MEMORYREAD_EA,
-						IARG_MEMORYREAD_SIZE,
-						IARG_UINT32, INS_IsPrefetch(ins),
-						IARG_END);
-				}
+				INS_InsertPredicatedCall
+					(
+					ins, IPOINT_BEFORE, (AFUNPTR)RecordMem,
+					IARG_INST_PTR,
+					IARG_REG_VALUE, REG_STACK_PTR,
+					IARG_UINT32, 'R',
+					IARG_MEMORYREAD_EA,
+					IARG_MEMORYREAD_SIZE,
+					IARG_UINT32, INS_IsPrefetch(ins),
+					IARG_END
+					);
+			}
 
-				if (INS_HasMemoryRead2(ins))
-				{
-					INS_InsertPredicatedCall(
-						ins, IPOINT_BEFORE, (AFUNPTR)RecordMem,
-						IARG_INST_PTR,
-						IARG_UINT32, 'R',
-						IARG_MEMORYREAD2_EA,
-						IARG_MEMORYREAD_SIZE,
-						IARG_UINT32, INS_IsPrefetch(ins),
-						IARG_END);
-				}
-
-				if (INS_IsMemoryWrite(ins) || INS_IsStackWrite(ins) ) 
-				{
-					INS_InsertPredicatedCall(
-						ins, IPOINT_BEFORE, (AFUNPTR)RecordMem,
-						IARG_INST_PTR,
-						IARG_UINT32, 'W',
-						IARG_MEMORYWRITE_EA,
-						IARG_MEMORYWRITE_SIZE,
-						IARG_UINT32, INS_IsPrefetch(ins),
-						IARG_END);
-				}
-			} // end of Stack is ok!
-			else  // ignore stack access
+			if (INS_HasMemoryRead2(ins))
 			{
-				if (INS_IsMemoryRead(ins) )
-				{
-				INS_InsertPredicatedCall(
-						ins, IPOINT_BEFORE, (AFUNPTR)RecordMemSP,
-						IARG_INST_PTR,
-						IARG_REG_VALUE, REG_STACK_PTR,
-						IARG_UINT32, 'R',
-						IARG_MEMORYREAD_EA,
-						IARG_MEMORYREAD_SIZE,
-						IARG_UINT32, INS_IsPrefetch(ins),
-						IARG_END);
-				}
+				INS_InsertPredicatedCall
+					(
+					ins, IPOINT_BEFORE, (AFUNPTR)RecordMem,
+					IARG_INST_PTR,
+					IARG_REG_VALUE, REG_STACK_PTR,
+					IARG_UINT32, 'R',
+					IARG_MEMORYREAD2_EA,
+					IARG_MEMORYREAD_SIZE,
+					IARG_UINT32, INS_IsPrefetch(ins),
+					IARG_END
+					);
+			}
 
-				if (INS_HasMemoryRead2(ins))
-				{
-					INS_InsertPredicatedCall(
-						ins, IPOINT_BEFORE, (AFUNPTR)RecordMemSP,
-						IARG_INST_PTR,
-						IARG_REG_VALUE, REG_STACK_PTR,
-						IARG_UINT32, 'R',
-						IARG_MEMORYREAD2_EA,
-						IARG_MEMORYREAD_SIZE,
-						IARG_UINT32, INS_IsPrefetch(ins),
-						IARG_END);
-				}
-
-				if (INS_IsMemoryWrite(ins)) 
-				{
-					INS_InsertPredicatedCall(
-						ins, IPOINT_BEFORE, (AFUNPTR)RecordMemSP,
-						IARG_INST_PTR,
-						IARG_REG_VALUE, REG_STACK_PTR,
-						IARG_UINT32, 'W',
-						IARG_MEMORYWRITE_EA,
-						IARG_MEMORYWRITE_SIZE,
-						IARG_UINT32, INS_IsPrefetch(ins),
-						IARG_END);
-				}
-			} // end of ignore stack 
+			if (INS_IsMemoryWrite(ins) || INS_IsStackWrite(ins) ) 
+			{
+				INS_InsertPredicatedCall
+					(
+					ins, IPOINT_BEFORE, (AFUNPTR)RecordMem,
+					IARG_INST_PTR,
+					IARG_REG_VALUE, REG_STACK_PTR,
+					IARG_UINT32, 'W',
+					IARG_MEMORYWRITE_EA,
+					IARG_MEMORYWRITE_SIZE,
+					IARG_UINT32, INS_IsPrefetch(ins),
+					IARG_END
+					);
+			}
 		}
 	}
 	
