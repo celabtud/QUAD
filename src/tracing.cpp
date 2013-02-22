@@ -156,13 +156,13 @@ int CreateTotalStatFile()
 	cerr<< "\nCreating summary report file (ML_OV_Summary.txt) containing information about the functions specified in the monitor list..." << endl;
 
 	out <<setw(30)<<setiosflags(ios::left)<<"Function"<<setw(12)<<"   IN_ML"
-		<<setw(12)<<" IN_ML_UMA"
+		<<setw(12)<<" IN_ML_UnMA"
 		<<setw(12)<<"  OUT_ML"
-		<<setw(12)<<"OUT_ML_UMA"
+		<<setw(12)<<"OUT_ML_UnMA"
 		<<setw(12)<<"  IN_ALL"
-		<<setw(12)<<"IN_ALL_UMA"
+		<<setw(12)<<"IN_ALL_UnMA"
 		<<setw(12)<<"  OUT_ALL"
-		<<setw(12)<<"OUT_ALL_UMA"
+		<<setw(12)<<"OUT_ALL_UnMA"
 		<<endl;
 
 	out <<setw(30)<<"-----------------------------"<<setw(12)<<"-----------"
@@ -222,14 +222,14 @@ int CreateTotalStatFile()
 
 	out << endl << "--" << endl;
 	out << "IN_ML -> Total number of bytes read by this function that a function in the monitor list is responsible for producing the value(s) of the byte(s)" << endl;
-	out << "IN_ML_UMA -> Total number of unique memory addresses used corresponding to 'IN_ML'" << endl;
+	out << "IN_ML_UnMA -> Total number of unique memory addresses used corresponding to 'IN_ML'" << endl;
 	out << "OUT_ML -> Total number of bytes read by a function in the monitor list that this function is responsible for producing the value(s) of the byte(s)" << endl;
-	out << "OUT_ML_UMA -> Total number of unique memory addresses used corresponding to 'OUT_ML'" << endl;
+	out << "OUT_ML_UnMA -> Total number of unique memory addresses used corresponding to 'OUT_ML'" << endl;
 
 	out << "IN_ALL -> Total number of bytes read by this function that a function in the application is responsible for producing the value(s) of the byte(s)" << endl;
-	out << "IN_ALL_UMA -> Total number of unique memory addresses used corresponding to 'IN_ALL'" << endl;
+	out << "IN_ALL_UnMA -> Total number of unique memory addresses used corresponding to 'IN_ALL'" << endl;
 	out << "OUT_ALL -> Total number of bytes read by a function in the application that this function is responsible for producing the value(s) of the byte(s)" << endl;
-	out << "OUT_ALL_UMA -> Total number of unique memory addresses used corresponding to 'OUT_ALL'" << endl;
+	out << "OUT_ALL_UnMA -> Total number of unique memory addresses used corresponding to 'OUT_ALL'" << endl;
 
 	out.close();
 	return 0;
@@ -279,18 +279,18 @@ int IsNewFunc(ADDRINT fadd)
 	return 0; /* function address exists in the list */
 }
 //------------------------------------------------------------------------------------------
-void set2ranges(set<ADDRINT>* UNMAs, vector<Range> & ranges)
+void set2ranges(set<ADDRINT>* UnMAs, vector<Range> & ranges)
 {
 	ADDRINT curr, next; 
 	Range r;
-	set<ADDRINT>::const_iterator pos = UNMAs->begin();
-	while(pos != UNMAs->end()) 
+	set<ADDRINT>::const_iterator pos = UnMAs->begin();
+	while(pos != UnMAs->end()) 
 	{  
 		curr= *pos;
 		next= *(++pos);
 		//cout<<curr<<'-';
 		r.lower = curr;
-		while( (next == curr + 1 ) && (pos != UNMAs->end() )  )
+		while( (next == curr + 1 ) && (pos != UnMAs->end() )  )
 		{
 			curr=*pos;
 			next= *(++pos);
