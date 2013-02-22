@@ -4,17 +4,17 @@ QUAD (Quantitative Usage Analysis of Data) consists of several tools that provid
 # What is reported
 Following quantities are reported:
 
-1.	amount of data transferred (in bytes)
-2.	number of unique memory addresses used in the transfer
-3.	amount of unique data involved (in bytes) in transfer
-4.	ranges of unique memory addresses used in the transfer
+1.	The amount of data transferred (in bytes),
+2.	The number of unique memory addresses used in the transfer,
+3.	The amount of unique data values (fresh values) involved in the transfer (in bytes),
+4.	The ranges of unique memory addresses used in the transfer.
 
 
 # Pin Tool Kit
 The tool has been developed based on [Pin](http://www.pintool.org). Pin is a tool kit for dynamic instrumentation of programs. It supports Linux binary executables for Intel (R) Xscale (R), IA-32, Intel64 (64 bit x86), and Itanium (R) processors; Windows executables for IA-32 and Intel64; and MacOS executables for IA-32. Pin does not instrument an executable statically by rewriting it, but rather adds the code dynamically while the executable is running.
 
 # How to Setup
-Here is the list of steps to use Quad on a linux machine IA32 and Intel64 (x86 32-bit and 64-bit). On windows machine the procedure is same, but basic (copy/paste/extract) commands may differ.
+Here is the list of steps to use QUAD on a linux machine IA32 and Intel64 (x86 32-bit and 64-bit). On windows machine the procedure is same, but basic (copy/paste/extract) commands may differ.
 
 1.	Download Pin tool kit, for instance Pin 2.12 revision 55942 can be downloaded from [here](http://software.intel.com/sites/landingpage/pintool/downloads/pin-2.12-55942-gcc.4.4.7-linux.tar.gz)
 
@@ -39,7 +39,7 @@ and then copy can be performed as:
 	export PINHOME=$(MYHOME)/pin-2.12
 	export PATH=$(PATH):$(PINHOME)
 
-6.	Download Quad from github (https://github.com/celabtud/QUAD) or from (http://celabtud.github.com/QUAD/) to your home directory $(HOME), or any other directory where you want to install Quad. If you downloaded as tar.gz package, you will need to extract it. Rename the Quad directory to `QUAD`.
+6.	Download QUAD from github (https://github.com/celabtud/QUAD) or from (http://celabtud.github.com/QUAD/) to your home directory $(HOME), or any other directory where you want to install Quad. If you downloaded as tar.gz package, you will need to extract it. Rename the QUAD directory to `QUAD`.
 
 7.	Change directory to QUAD
 
@@ -49,7 +49,7 @@ and then copy can be performed as:
 
 	export QUADHOME=$(MYHOME)/QUAD
 
-9.	Make the Quad tool by:
+9.	Make the QUAD tool by:
 
 	make
 
@@ -83,7 +83,7 @@ In order to stay update with the recent releases of Quad, it is recommended clon
 
 
 ### Note:
-If you want to participate in the develpment of Quad, have a look at [Contribution Section](https://github.com/celabtud/QUAD/blob/master/CONTRIBUTING.md#developer-guidelines) below.
+If you want to participate in the develpment of QUAD, have a look at [Contribution Section](https://github.com/celabtud/QUAD/blob/master/CONTRIBUTING.md#developer-guidelines) below.
 
 
 ## Important Note for Windows users*
@@ -95,7 +95,7 @@ Now that QUAD is setup, it can be invoked as follows.
 
 	pin -t $(QUADHOME)/obj-ia32/QUAD.so <QUAD-command-line-options> -- <application-name> <application-command-line-options>
 
-##Example Usage (Quad Hello World):
+##Example Usage (QUAD Hello World):
 Lets assume we have an application, hello.c which we want to profile. Compile it (for instance with the following command):
 
 	gcc -o hello hello.c
@@ -163,7 +163,7 @@ The [wiki](https://github.com/celabtud/QUAD/wiki) is your one-stop resource for 
 Here are some basic terms/definitions:
 
 ### BINDING
-When a function (itself or someone this function is responsible for calling and we are simply not interested to monitor the callee; e.g. system library functions, etc.) writes to a memory location, and later the same memory location is read by another function, we say a binding is established.
+When a function (itself or someone this function is responsible for calling and we are simply not interested to monitor the callee; e.g., system library functions, etc.) writes to a memory location, and later the same memory location is read by another function, we say a binding is established.
 
 ### PRODUCER
 The name of the function who is responsible for the most recent write to a memory address.
@@ -188,28 +188,28 @@ This value shows the number of unique data values involved in transfer
 
 2-	After the application execution, all the producer/consumer bindings information is stored into an XML file named 'q2profiling.xml' in the current directory by default (the previous <QUAD> elements in the XML file that already exists are overwritten).
 
-3-	Summary report file ('ML_OV_Summary.txt') is also created containing information about the functions specified in a monitor list, only in case the user has specified the relevant option in the command line. This text file basically provides statistics on total bytes/UMA for selected functions. There are eight different values that are explained in the following.
+3-	Summary report file ('ML_OV_Summary.txt') is also created containing information about the functions specified in a monitor list, only in case the user has specified the relevant option in the command line. This text file basically provides statistics on total bytes/UnMA for selected functions. There are eight different values that are explained in the following.
 
 * IN_ML -> Total number of bytes read by this function that a function in the monitor list is responsible for producing the value(s) of the byte(s)
 
-* IN_ML_UMA -> Total number of unique memory addresses used corresponding to 'IN_ML'
+* IN_ML_UnMA -> Total number of unique memory addresses used corresponding to 'IN_ML'
 
 * OUT_ML -> Total number of bytes read by a function in the monitor list that this function is responsible for producing the value(s) of the byte(s)
 
-* OUT_ML_UMA -> Total number of unique memory addresses used corresponding to 'OUT_ML'
+* OUT_ML_UnMA -> Total number of unique memory addresses used corresponding to 'OUT_ML'
 IN_ALL -> Total number of bytes read by this function that a function in the application is responsible for producing the value(s) of the byte(s)
 
-* IN_ALL_UMA -> Total number of unique memory addresses used corresponding to 'IN_ALL'
+* IN_ALL_UnMA -> Total number of unique memory addresses used corresponding to 'IN_ALL'
 OUT_ALL -> Total number of bytes read by a function in the application that this function is responsible for producing the value(s) of the byte(s)
 
-* OUT_ALL_UMA -> Total number of unique memory addresses used corresponding to 'OUT_ALL'
+* OUT_ALL_UnMA -> Total number of unique memory addresses used corresponding to 'OUT_ALL'
 
 
 # Develop with us
 See Developer Guidelines in [CONTRIBUTING.md](https://github.com/celabtud/QUAD/blob/master/CONTRIBUTING.md). Have a look at our [issue tracker](https://github.com/celabtud/QUAD/issues)
 
 # Get in touch
-Join the [mailinglist](http://groups.google.com/group/CEQuad)
+Join the [mailinglist](http://groups.google.com/group/CEQUAD)
 
 # Bug Report/Feature Request
-Use Quad [mailinglist](http://groups.google.com/group/CEQuad)
+Use QUAD [mailinglist](http://groups.google.com/group/CEQUAD)
