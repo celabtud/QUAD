@@ -130,7 +130,7 @@ Beside the common built-in options for Pin-developed tools, there are some speci
 
 ### -ignore_stack_access <0/1>
 	Ignore memory accesses within application's stack region
-	By default, QUAD tracks ALL memory accesses to produce binding information. This means, a function extensively using local variable(s) on the stack results in reporting self-bindings in the form of 'x->x' data transfers, which sometimes makes the reports polluted or we get some biased statistics due to a function's formal input parameter that is referenced many times in the stack region after call. To avoid this, there is a possibility to specify '-ignore_stack_access' in the command line, which tends to provide a clear and straightforward information to the user.
+	By default, QUAD tracks ALL memory accesses to produce binding information. This means, a function extensively using local variable(s) on the stack results in reporting self-bindings in the form of 'x->x' data transfers, which sometimes makes the reports polluted or we get some biased statistics due to a function's formal input parameter that is referenced many times in the stack region after call. To avoid this, there is a possibility to specify '-ignore_stack_access' in the command line, which tends to provide a clear and straightforward information to the user. NOTE: If you compile programs with "gcc" and optimizations enabled this option will have the greatest impact if you also add "-fomit-frame-pointer".
 
 ### -use_monitor_list <file_name>
     Create output report files only for certain function(s) in the application and filter out the rest (the functions are listed in a text file whose name follows)

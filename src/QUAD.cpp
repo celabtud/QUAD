@@ -515,7 +515,7 @@ VOID Instruction(INS ins, VOID *v)
 			
 		if( (Select_Instr_ON == FALSE) || (inSIFList == TRUE ) )
 		{
-			if (INS_IsMemoryRead(ins) || INS_IsStackRead(ins) )
+			if (INS_IsMemoryRead(ins) && !(No_Stack_Flag && INS_IsStackRead(ins)) )
 			{
 				INS_InsertPredicatedCall
 					(
@@ -545,7 +545,7 @@ VOID Instruction(INS ins, VOID *v)
 					);
 			}
 
-			if (INS_IsMemoryWrite(ins) || INS_IsStackWrite(ins) ) 
+			if (INS_IsMemoryWrite(ins) && !(No_Stack_Flag && INS_IsStackWrite(ins)))
 			{
 				INS_InsertPredicatedCall
 					(
