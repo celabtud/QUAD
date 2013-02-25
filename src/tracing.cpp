@@ -383,37 +383,44 @@ void recTrieTraverse(struct trieNode* current,int level)
 				set2ranges(temp->UniqueMemCells, ranges);
 				q2xml->insertChannel(new Channel(prodName,consName,ranges,temp->UniqueMemCells->size(),temp->data_exchange,temp->UniqueValues));
 
-				if(KnobDotShowRanges.Value()==TRUE) 
+				if(KnobDotShowRanges.Value()==TRUE || KnobElf.Value()==TRUE) //if we need to show ranges or show the names of variables (globals)
 				{
 					vector<Range>::iterator it = ranges.begin();
 					int crt=0;
 					while(it!=ranges.end()) 
 					{
-						fprintf(gfp,"(%8x-%8x)",(*it).lower,(*it).upper);
+						if(KnobDotShowRanges.Value()==TRUE )
+							fprintf(gfp,"(%8x-%8x)",(*it).lower,(*it).upper);
 #ifdef QUAD_LIBELF
-						map<string,GlobalSymbol*>::iterator its = globalSymbols.begin();
-						while(its!=globalSymbols.end()) 
+						if(KnobElf.Value()==TRUE )
 						{
-							if(its->second->start<=it->lower &&
-							  its->second->start+its->second->size>=it->upper) 
+							map<string,GlobalSymbol*>::iterator its = globalSymbols.begin();
+							while(its!=globalSymbols.end()) 
 							{
-								fprintf(gfp," from %s (%2.1f%%)",its->first.c_str(),
-								  its->second->size!=0?((it->upper-it->lower+1)/(float)its->second->size)*100:100);
-								break;
+								if(its->second->start <= it->lower &&
+								its->second->start+its->second->size >= it->upper) 
+								{
+									fprintf(gfp," from %s (%2.1f%%)",its->first.c_str(),
+											its->second->size!=0 ? ((it->upper-it->lower+1)/(float)its->second->size)*100 : 100);
+									break;
+								}
+								its++;
 							}
-							its++;
+							fprintf(gfp,"\\n");
 						}
 #endif
-						fprintf(gfp,"\\n");
+						if( KnobDotShowRanges.Value()==TRUE) 
+							fprintf(gfp,"\\n");
+						
 						it++;
 						crt++;
-						if(KnobDotShowRangesLimit.Value()<crt+1) 
+						if(KnobDotShowRangesLimit.Value() < crt+1) 
 						{
 							break;
 						}
 					}
 					
-					if(it!=ranges.end()) 
+					if( KnobDotShowRanges.Value()==TRUE && it != ranges.end()) 
 					{
 						fprintf(gfp," and other...\\n");
 					}
