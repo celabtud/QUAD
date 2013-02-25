@@ -143,7 +143,7 @@ UINT32 Total_M_Ins=0; // total number of instructions but divided by a million
 UINT64 Progress_Ins=0;
 UINT32 Progress_M_Ins=0;
 UINT32 Percentage=0;
-
+BOOL Track_Progress = FALSE;
 BOOL Count_Only = FALSE;
 BOOL Monitor_ON = FALSE;
 BOOL Include_External_Images=FALSE; // a flag showing our interest to trace functions which are not included in the main image file
@@ -208,7 +208,7 @@ KNOB<BOOL> KnobDotShowUnDVs(KNOB_MODE_WRITEONCE, "pintool",
 	"dotShowUnDVs","1", "Set dotDotShowUnDVs to 0 to disable the printing of 'UnDVs' on the edges.");
 
 KNOB<BOOL> KnobDotShowRanges(KNOB_MODE_WRITEONCE, "pintool",
-	"dotShowRanges","1", "Set dotDotShowRanges to 1 to enable the printing of 'ranges' on the edges.");
+	"dotShowRanges","0", "Set dotDotShowRanges to 1 to enable the printing of 'ranges' on the edges.");
 
 KNOB<int> KnobDotShowRangesLimit(KNOB_MODE_WRITEONCE, "pintool",
 	"dotShowRangesLimit","3", "Set dotDotShowRangesLimit to the maximum number of ranges you want to show.");
@@ -503,9 +503,8 @@ VOID IncreaseTotalInstCounter()
 // Is called for every instruction and instruments reads and writes and the Ret instruction
 VOID Instruction(INS ins, VOID *v)
 {
-	//TODO: this should not be here as it will be an overhead even if we dont want to show progress
-	// a flag can be set to see if we need progress reporting or not
-	INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)IncreaseTotalInstCounter, IARG_END);
+	if(Track_Progress)
+		INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)IncreaseTotalInstCounter, IARG_END);
 
 	if (!Count_Only) //no need to record memory accesses in count only mode
 	{
@@ -611,6 +610,8 @@ int main(int argc, char *argv[])
 	Count_Only=KnobCountOnly.Value();  // whether to count instructions only.
 	Progress_M_Ins = KnobProgress_M_Ins.Value();
 	Progress_Ins = KnobProgress_Ins.Value();
+	Track_Progress = (Count_Only || Progress_M_Ins || Progress_Ins );
+	
 #ifndef QUAD_LIBELF
 	if(KnobElf.Value()) {
 		printf("ERROR: Trying to use Elf file option when libelf support not compiled in QUAD\n");
