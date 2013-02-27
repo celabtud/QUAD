@@ -460,11 +460,8 @@ static VOID RecordMem(VOID * ip, VOID * ESP, CHAR r, VOID * addr, INT32 size, BO
 			ADDtoName[GlobalfunctionNo]=ftnName;   // create the Number -> String binding
 		} 
 
-		for(int i=0;i<size;i++)
-		{
-			RecordMemoryAccess((ADDRINT)addr,NametoADD[ftnName],r=='W');
-			addr=((char *)addr)+1;  // cast not needed anyway!
-		}//end for
+		RecordMemoryAccess((ADDRINT)addr,NametoADD[ftnName],r=='W', size);
+
 	}// end of not a prefetch
 }
 

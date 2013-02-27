@@ -74,6 +74,6 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 int CreateDSGraphFile();
-int RecordMemoryAccess(VOID *, long int,long int,long int);
+int RecordMemoryAccess(VOID *, long int,long int,long int, int);
 
 #endif //__TRACING__H__

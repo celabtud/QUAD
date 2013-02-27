@@ -350,7 +350,6 @@ void recTrieTraverse(struct trieNode* current,int level)
 				}
 
 				color = (int) (  1023 *  log((double)(temp->data_exchange)) / log((double)MaxLabel)  ); 
-				//fprintf(gfp,"\"%08x\" -> \"%08x\"  [label=\"%llu Bytes (%lu UnMAs %llu UnDVs)\" color=\"#%02x%02x%02x\"]\n",(unsigned int)temp->producer,(unsigned int)temp->consumer,temp->data_exchange,(unsigned long int)temp->UniqueMemCells->size(),temp->UniqueValues, max(0,color-768),min(255,512-abs(color-512)), max(0,min(255,512-color)));
 				
 				unsigned long int unma = temp->UniqueMemCells->size();
 				float unmaPerCall = 0;
@@ -379,7 +378,6 @@ void recTrieTraverse(struct trieNode* current,int level)
 				
 				
 				//Put_Binding_in_XML_file(prodName,consName,temp->data_exchange,temp->UniqueMemCells->size());
-// 				q2xml->insertChannel(new Channel(prodName,consName,temp->UniqueMemCells->size(),temp->data_exchange,temp->UniqueValues));
 				set2ranges(temp->UniqueMemCells, ranges);
 				q2xml->insertChannel(new Channel(prodName,consName,ranges,temp->UniqueMemCells->size(),temp->data_exchange,temp->UniqueValues));
 
@@ -493,7 +491,7 @@ int CreateDSGraphFile()
 }
 
 //------------------------------------------------------------------------------------------
-int RecordCommunicationInDSGraph(ADDRINT producer, ADDRINT consumer, ADDRINT locAddr, struct trieNode * currentLPold)
+int RecordCommunicationInDSGraph(ADDRINT producer, ADDRINT consumer, ADDRINT locAddr, struct trieNode * currentLPold, int size)
 {
 	int currentLevel=0;
 	Binding* tempptr;
@@ -567,25 +565,29 @@ int RecordCommunicationInDSGraph(ADDRINT producer, ADDRINT consumer, ADDRINT loc
 	}
 
 	tempptr=(Binding*) ( currentLP->list[addressArray[currentLevel]] );
-	tempptr->data_exchange=tempptr->data_exchange+1;
+	tempptr->data_exchange=tempptr->data_exchange + size;
 	
 	//make the status of this location as OLD by ClearFlag() for this consumer. 
 	//A true will be returned if this value is fresh and now it will be set to old
 	//A false will be returned if this value is already old (read) and is being re-read
  	if(currentLPold->RenewalFlags->ClearFlag(consumer))
- 		tempptr->UniqueValues = tempptr->UniqueValues + 1;
+ 		tempptr->UniqueValues = tempptr->UniqueValues + size;
 
 	// only needed for graph visualization coloring!
 	if (tempptr->data_exchange > MaxLabel) 
 		MaxLabel=tempptr->data_exchange; 
 	
-	tempptr->UniqueMemCells->insert(locAddr);
-
+	for(int i=0;i<size;i++)
+	{
+		tempptr->UniqueMemCells->insert(locAddr);
+		locAddr=(ADDRINT)((char *)locAddr)+1;
+	}//end for
+	
 	//********* what to do if insertion is not successful, memory problems !!!!!!!!!!!!
 	return 0; /* successful recording */
 }
 //------------------------------------------------------------------------------------------
-int RecordMemoryAccess(ADDRINT locAddr, ADDRINT func,bool writeFlag)
+int RecordMemoryAccess(ADDRINT locAddr, ADDRINT func,bool writeFlag, int size)
 {
 	int currentLevel=0;
 	int i,retv;
@@ -636,20 +638,22 @@ int RecordMemoryAccess(ADDRINT locAddr, ADDRINT func,bool writeFlag)
 			*((ADDRINT*) (currentLP->list[addressArray[currentLevel]]) )=0; /* no write access has been recorded yet!!! */
  			currentLP->RenewalFlags = new FNodeList(); //RenewalFlags for Unique value computations
 		}
-	}           
+	}
+	
 	if (writeFlag)
 	{
 		*((ADDRINT*) (currentLP->list[addressArray[currentLevel]])  )=func;  /* only record the last function's write to a memory location?!! */
 		
-		//As this lovation is just written so ReNew the flags for this lovation for all the existing consumers of this location
+		//As this location is just written so ReNew the flags for this lovation for all the existing consumers of this location
  		currentLP->RenewalFlags->SetFlags();
 	}
 	else 
 	{
-		/* producer , consumer , address used for making this binding! , location in the tree */
-		retv=RecordCommunicationInDSGraph(*((ADDRINT*) (currentLP->list[addressArray[currentLevel]]) ), func, locAddr, currentLP); 
 		//DS = Data Structure Graph
+		/* producer , consumer , address used for making this binding! , location in the tree */
+		retv=RecordCommunicationInDSGraph(*((ADDRINT*) (currentLP->list[addressArray[currentLevel]]) ), func, locAddr, currentLP, size); 
 		if (retv) return 1; /* memory exhausted */
 	}
+
 	return 0; /* successful trace */
 }
