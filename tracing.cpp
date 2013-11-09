@@ -390,7 +390,7 @@ void recTrieTraverse(struct trieNode* current,int level)
 					while(it!=ranges.end()) 
 					{
 						if(KnobDotShowRanges.Value()==TRUE )
-							fprintf(gfp,"(%8x-%8x)",(*it).lower,(*it).upper);
+							fprintf(gfp,"(%8x-%8x)",(unsigned int)(*it).lower,(unsigned int)(*it).upper);
 #ifdef QUAD_LIBELF
 						if(KnobElf.Value()==TRUE )
 						{
