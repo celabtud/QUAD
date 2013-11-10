@@ -70,6 +70,7 @@ int BBList::initFromFile(string fname)
 	string file, ftn;
 	int st, end;
 	ifstream myfile;
+    int retVal=0;
 	myfile.open(fname.c_str());
 	
 	if (myfile.is_open())
@@ -83,13 +84,16 @@ int BBList::initFromFile(string fname)
 			file="";
 			ftn="";
 		}
-		myfile.close();
+		retVal=1;
 	}
-	
 	else 
-		cout << "Unable to open file"; 
+    {
+        cout << "Unable to open file"; 
+        retVal=0;
+    }
 	
 	myfile.close();
+    return retVal;
 }
 
 string BBList::probeBB(string file, string ftn, int line)

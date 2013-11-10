@@ -53,7 +53,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 
 //==============================================================================
-/* QUADcore.cpp: 
+/* QUAD.cpp: 
  * This file contains the main routines for the QUAD core tool which detects the 
  * actual data dependencies between the functions in a program.
  *
@@ -67,69 +67,23 @@ THE POSSIBILITY OF SUCH DAMAGE.
 // separately for each function in the monitor list in two modes (In one the kernel is acting as a producer, in the other, as a consumer.
 // the names of the output text files are <kernel_(p).txt> and <kernel_(c).txt>
 
-#include "pin.H"
-#include <fcntl.h>
-#include <stdio.h>
-#include <iostream>
-#include <iomanip>
-#include <fstream>
-#include <cstring>
-#include <string>
-#include <vector>
-#include <stack>
-#include <set>
-#include <map>
-#include <algorithm>
-
-#include "Channel.h"
-#include "Exception.h"
-#include "Q2XMLFile.h"
-#include "BBlock.h"
+#include "QUAD.h"
+#include "tracing.h"
 
 #ifdef QUAD_LIBELF
 #include "gelf.h"
 #endif
 
-//----------------------------------------------------------------------
-#if defined( WIN32 ) && defined( TUNE )
-	#include <crtdbg.h>
-	_CrtMemState startMemState;
-	_CrtMemState endMemState;
-#endif
-
-#ifdef WIN32
-#define DELIMITER_CHAR '\\'
-#else 
-#define DELIMITER_CHAR '/'
-#endif
-
-//---------- for current path
-#ifdef WIN32
-	#include <direct.h>
-	#define GetCurrentDir _getcwd
-#else
-	#include <unistd.h>
-	#define GetCurrentDir getcwd
-#endif
-
 /* ===================================================================== */
 /* Global Variables */
 /* ===================================================================== */
-Q2XMLFile *q2xml; // also used in Tracing.cpp
-BBList bblist;		//list of BBlocks
+Q2XMLFile *q2xml;
+BBList bblist;      //list of BBlocks
 
 char main_image_name[100];
 
 map <string,ADDRINT> NametoADD;
 map <ADDRINT,string> ADDtoName;
-
-class GlobalSymbol {
-	public:
-		GlobalSymbol():start(0),size(0){};
-		GlobalSymbol(ADDRINT st, ADDRINT sz):start(st),size(sz){};
-		ADDRINT start;
-		ADDRINT size;
-};
 
 map <string, GlobalSymbol*> globalSymbols;
 
@@ -160,23 +114,9 @@ map <string, string> NameToFunction;
 // The number of calls for each function
 map <string, int> FunctionToCount;
 
-typedef struct 
-{
-	UINT64 total_IN_ML;  // total bytes consumed by this function, produced by a function in the monitor list
-	UINT64 total_OUT_ML; // total bytes produced by this function, consumed by a function in the monitor list
-	UINT64 total_IN_ML_UMA; // total UMA used by this function, produced by a function in the monitor list
-	UINT64 total_OUT_ML_UMA; // total UMA used by this function, consumed by a function in the monitor list
-	UINT64 total_IN_ALL; // total bytes consumed by this function, produced by any function in the application
-	UINT64 total_OUT_ALL; // total bytes produced by this function, consumed by any function in the application
-	UINT64 total_IN_ALL_UMA; // total UMA used by this function, produced by any function in the application
-	UINT64 total_OUT_ALL_UMA; // total UMA used by this function, consumed by any function in the application
-	vector<string> consumers;
-	vector<string> producers;
-}
-TTL_ML_Data_Pack ;
-   
+
 map <string,TTL_ML_Data_Pack *> ML_OUTPUT ;  // used to maintain info regarding monitor list statistics
-vector <string> SIFL_OUTPUT;	//used to maintain selected instrument functions names
+vector <string> SIFL_OUTPUT;    //used to maintain selected instrument functions names
 char fileName[FILENAME_MAX];
 char cCurrentPath[FILENAME_MAX];
 /* ===================================================================== */
@@ -184,65 +124,87 @@ char cCurrentPath[FILENAME_MAX];
 /* ===================================================================== */
 
 KNOB<BOOL> KnobCountOnly(KNOB_MODE_WRITEONCE, "pintool",
-	"count_only", "0", "Set count_only to 1 to only count instructions");
+    "count_only", "0", "Set count_only to 1 to only count instructions");
 
 KNOB<UINT32> KnobProgress_M_Ins(KNOB_MODE_WRITEONCE, "pintool",
-	"m_ins", "0", "the number of instructions that will be executed divided by one million");
+    "m_ins", "0", "the number of instructions that will be executed divided by one million");
 
 KNOB<UINT64> KnobProgress_Ins(KNOB_MODE_WRITEONCE, "pintool",
-	"ins", "0", "the number of instructions that will be executed modulo one million");
+    "ins", "0", "the number of instructions that will be executed modulo one million");
 
 KNOB<string> KnobBBFile(KNOB_MODE_WRITEONCE, "pintool",
-	"bbfile","bbList.txt", "Specify file name for the text file containg BBlocks");
+    "bbfile","bbList.txt", "Specify file name for the text file containg BBlocks");
 
 KNOB<BOOL> KnobBBMode(KNOB_MODE_WRITEONCE, "pintool",
-	"bbMode","0", "Set bbMode to 1 to use basic block mode <specify basic blocks in bbList.txt >");
+    "bbMode","0", "Set bbMode to 1 to use basic block mode <specify basic blocks in bbList.txt >");
 
 KNOB<BOOL> KnobBBFuncCount(KNOB_MODE_WRITEONCE, "pintool",
-	"bbFuncCount","0", "Set bbFuncCount to 1 to gather call number statistics and dump them to XML file.");
+    "bbFuncCount","0", "Set bbFuncCount to 1 to gather call number statistics and dump them to XML file.");
 
 KNOB<BOOL> KnobDotShowBytes(KNOB_MODE_WRITEONCE, "pintool",
-	"dotShowBytes","1", "Set dotDotShowBytes to 0 to disable the printing of 'Bytes' on the edges.");
+    "dotShowBytes","1", "Set dotDotShowBytes to 0 to disable the printing of 'Bytes' on the edges.");
 
 KNOB<BOOL> KnobDotShowUnDVs(KNOB_MODE_WRITEONCE, "pintool",
-	"dotShowUnDVs","1", "Set dotDotShowUnDVs to 0 to disable the printing of 'UnDVs' on the edges.");
+    "dotShowUnDVs","1", "Set dotDotShowUnDVs to 0 to disable the printing of 'UnDVs' on the edges.");
 
 KNOB<BOOL> KnobDotShowRanges(KNOB_MODE_WRITEONCE, "pintool",
-	"dotShowRanges","0", "Set dotDotShowRanges to 1 to enable the printing of 'ranges' on the edges.");
+    "dotShowRanges","0", "Set dotDotShowRanges to 1 to enable the printing of 'ranges' on the edges.");
 
 KNOB<int> KnobDotShowRangesLimit(KNOB_MODE_WRITEONCE, "pintool",
-	"dotShowRangesLimit","3", "Set dotDotShowRangesLimit to the maximum number of ranges you want to show.");
+    "dotShowRangesLimit","3", "Set dotDotShowRangesLimit to the maximum number of ranges you want to show.");
 
 KNOB<string> KnobXML(KNOB_MODE_WRITEONCE, "pintool",
-	"xmlfile","q2profiling.xml", "Specify file name for output data in XML format (default q2profiling.xml)");
+    "xmlfile","q2profiling.xml", "Specify file name for output data in XML format (default q2profiling.xml)");
 
 KNOB<string> KnobApplication(KNOB_MODE_WRITEONCE, "pintool", 
-	"applic","testAPPlication", "Specify application name for XML file format (default testAPPlication)");
+    "applic","testAPPlication", "Specify application name for XML file format (default testAPPlication)");
 
 KNOB<BOOL> KnobElf(KNOB_MODE_WRITEONCE, "pintool", 
-	"elf","0", "Set to 1 to enable variable names from elf file (this works only if libelf support is compiled in QUAD).");
+    "elf","0", "Set to 1 to enable variable names from elf file (this works only if libelf support is compiled in QUAD).");
 
 KNOB<string> KnobMonitorList(KNOB_MODE_WRITEONCE, "pintool", 
-	"use_monitor_list","", "Create output report files only for certain function(s) in the application and filter out the rest (the functions are listed in a text file whose name follows)");
+    "use_monitor_list","", "Create output report files only for certain function(s) in the application and filter out the rest (the functions are listed in a text file whose name follows)");
 
 KNOB<string> KnobInstrumentSelectedFtns(KNOB_MODE_WRITEONCE, "pintool", 
-	 "instrument_selected_functions","", "Instrument only the selected function(s) (the functions are listed in a text file whose name follows)");
-								 
+     "instrument_selected_functions","", "Instrument only the selected function(s) (the functions are listed in a text file whose name follows)");
+                                 
 KNOB<BOOL> KnobIgnoreStackAccess(KNOB_MODE_WRITEONCE, "pintool",
-	"ignore_stack_access","0", "Ignore memory accesses within application's stack region");
+    "ignore_stack_access","0", "Ignore memory accesses within application's stack region");
 
 KNOB<BOOL> KnobIgnoreUncommonFNames(KNOB_MODE_WRITEONCE, "pintool",
-	"filter_uncommon_functions","1", "Filter out uncommon function names which are unlikely to be defined by user (beginning with question mark, underscore(s), etc.)");
+    "filter_uncommon_functions","1", "Filter out uncommon function names which are unlikely to be defined by user (beginning with question mark, underscore(s), etc.)");
 
 KNOB<BOOL> KnobIncludeExternalImages(KNOB_MODE_WRITEONCE, "pintool",
-	"include_external_images","0", "Trace functions that are contained in external image file(s)");
+    "include_external_images","0", "Trace functions that are contained in external image file(s)");
 
 KNOB<BOOL> KnobVerbose_ON(KNOB_MODE_WRITEONCE, "pintool",
-	"verbose","0", "Print information on the console during application execution");
+    "verbose","0", "Print information on the console during application execution");
     
 /* ===================================================================== */
 
-#include "tracing.cpp"
+
+//----------------------------------------------------------------------
+#if defined( WIN32 ) && defined( TUNE )
+	#include <crtdbg.h>
+	_CrtMemState startMemState;
+	_CrtMemState endMemState;
+#endif
+
+#ifdef WIN32
+#define DELIMITER_CHAR '\\'
+#else 
+#define DELIMITER_CHAR '/'
+#endif
+
+//---------- for current path
+#ifdef WIN32
+	#include <direct.h>
+	#define GetCurrentDir _getcwd
+#else
+	#include <unistd.h>
+	#define GetCurrentDir getcwd
+#endif
+
 
 /* ===================================================================== */
 VOID EnterFC(char *name,bool flag) 

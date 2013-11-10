@@ -4,7 +4,16 @@
 # non-default build rules and test recipes.
 #
 ##############################################################
+# tracing Utility BBlock Channel Exception RenewalFlags Q2XMLFile ticpp tinystr tinyxml tinyxmlerror tinyxmlparser
 
+ifdef LIBELF_INC
+    LIBELF_CXXFLAGS=-I$(LIBELF_INC) -I$(LIBELF_INC)/libelf -DQUAD_LIBELF
+else
+    $(warning To take advantage of all the features of QUAD please point LIBELF_INC to the include directory where libelf is installed (ex: /usr/local/include))
+endif
+
+
+TOOL_CXXFLAGS+=$(LIBELF_CXXFLAGS)
 
 ##############################################################
 #
@@ -17,10 +26,10 @@
 # This defines tests which run tools of the same name.  This is simply for convenience to avoid
 # defining the test name twice (once in TOOL_ROOTS and again in TEST_ROOTS).
 # Tests defined here should not be defined in TOOL_ROOTS and TEST_ROOTS.
-TEST_TOOL_ROOTS := QUAD
+TEST_TOOL_ROOTS := QUAD 
 
 # This defines the tests to be run that were not already defined in TEST_TOOL_ROOTS.
-TEST_ROOTS :=
+TEST_ROOTS := 
 
 # This defines a list of tests that should run in the "short" sanity. Tests in this list must also
 # appear either in the TEST_TOOL_ROOTS or the TEST_ROOTS list.
@@ -30,7 +39,7 @@ SANITY_SUBSET :=
 
 # This defines the tools which will be run during the the tests, and were not already defined in
 # TEST_TOOL_ROOTS.
-TOOL_ROOTS :=
+TOOL_ROOTS := 
 
 # This defines the static analysis tools which will be run during the the tests. They should not
 # be defined in TEST_TOOL_ROOTS. If a test with the same name exists, it should be defined in
@@ -50,7 +59,7 @@ OBJECT_ROOTS :=
 DLL_ROOTS :=
 
 # This defines any static libraries (archives), that need to be built.
-LIB_ROOTS :=
+LIB_ROOTS := 
 
 
 ##############################################################
@@ -72,3 +81,26 @@ LIB_ROOTS :=
 
 # This section contains the build rules for all binaries that have special build rules.
 # See makefile.default.rules for the default build rules.
+CPPSRCS=QUAD.cpp tracing.cpp Utility.cpp BBlock.cpp Exception.cpp RenewalFlags.cpp\
+	Channel.cpp  Q2XMLFile.cpp
+
+CPPOBJS = $(CPPSRCS:%.cpp=$(OBJDIR)%$(OBJ_SUFFIX))
+
+XML_CXXFLAGS=-O3 -g -DTIXML_USE_TICPP -fPIC	
+TINYXMLSRCS = ticpp.cpp tinystr.cpp tinyxml.cpp tinyxmlerror.cpp tinyxmlparser.cpp
+TINYXMLOBJS = $(TINYXMLSRCS:%.cpp=$(OBJDIR)%.oo)
+
+$(OBJDIR)%.oo:%.cpp
+	$(CXX) $(TOOL_CXXFLAGS) $(XML_CXXFLAGS) $(COMP_OBJ)$@ $<
+
+$(OBJDIR)QUAD$(PINTOOL_SUFFIX): $(CPPOBJS) $(TINYXMLOBJS)
+	$(LINKER) $(TOOL_LDFLAGS) $(LINK_EXE)$@ $^ $(TOOL_LPATHS) $(TOOL_LIBS)
+
+HEADERS=QUAD.h tracing.h Utility.h BBlock.h Channel.h Exception.h RenewalFlags.h\
+	Q2XMLFile.h ticpp.h ticpprc.h tinystr.h tinyxml.h 
+	
+$(OBJDIR)QUAD$(OBJ_SUFFIX): $(HEADERS)
+
+clean: cleantemp
+cleantemp:
+	-rm -rf *~ $(TINYXMLOBJS)

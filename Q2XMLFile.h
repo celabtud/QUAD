@@ -13,6 +13,7 @@
 
 #include "Channel.h"
 #include "ticpp.h"
+
 class Q2XMLFile
 {
 	private:

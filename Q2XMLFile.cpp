@@ -14,7 +14,7 @@
 #include "Utility.h"
 
 Q2XMLFile::Q2XMLFile(const string& filename, const string& ns, const string &appname)
-	:m_filename(filename) , m_namespace(ns),m_appfinger(ns + "application"),m_applicname(appname)
+	:m_filename(filename) , m_namespace(ns),m_applicname(appname),m_appfinger(ns + "application")
 {
 	try
 	{

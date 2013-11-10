@@ -52,31 +52,90 @@ THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 //==============================================================================
-/* tracing.h: 
+/* QUAD.h: 
  * The prototypes of tracing routines, used by QUAD tool
  *
- *  Authors: Arash Ostadzadeh
- *           Roel Meeuws
+ *  Authors: Imran Ashraf
 */
 //==============================================================================
 
-#ifndef __TRACING__H__
-#define __TRACING__H__
+#ifndef __QUAD__H__
+#define __QUAD__H__
 
+#include "pin.H"
 #include <pin.H>
+#include <fcntl.h>
+#include <stdio.h>
 #include <cstdio>
-#include <iomanip>
 #include <cstdlib>
-#include <cmath>
-#include <map>
+#include <iostream>
+#include <iomanip>
+#include <fstream>
+#include <cstring>
+#include <string>
+#include <vector>
+#include <stack>
 #include <set>
+#include <map>
+#include <algorithm>
+#include <cmath>
+
+#include "Channel.h"
+#include "Exception.h"
+#include "Q2XMLFile.h"
+#include "BBlock.h"
 
 #ifndef NULL
 #define NULL 0L
 #endif
 
-int CreateDSGraphFile();
-int RecordMemoryAccess(ADDRINT locAddr, ADDRINT func,bool writeFlag);
-int CreateTotalStatFile();
+extern Q2XMLFile *q2xml;
 
-#endif //__TRACING__H__
+typedef struct 
+{
+    UINT64 total_IN_ML;  // total bytes consumed by this function, produced by a function in the monitor list
+    UINT64 total_OUT_ML; // total bytes produced by this function, consumed by a function in the monitor list
+    UINT64 total_IN_ML_UMA; // total UMA used by this function, produced by a function in the monitor list
+    UINT64 total_OUT_ML_UMA; // total UMA used by this function, consumed by a function in the monitor list
+    UINT64 total_IN_ALL; // total bytes consumed by this function, produced by any function in the application
+    UINT64 total_OUT_ALL; // total bytes produced by this function, consumed by any function in the application
+    UINT64 total_IN_ALL_UMA; // total UMA used by this function, produced by any function in the application
+    UINT64 total_OUT_ALL_UMA; // total UMA used by this function, consumed by any function in the application
+    vector<string> consumers;
+    vector<string> producers;
+}
+TTL_ML_Data_Pack ;
+
+extern map <string,TTL_ML_Data_Pack *> ML_OUTPUT ;  // used to maintain info regarding monitor list statistics
+
+extern BOOL Monitor_ON;
+
+extern map <string,ADDRINT> NametoADD;
+extern map <ADDRINT,string> ADDtoName;
+
+// A mapping between the name used and the functions names. This is needed
+// as names can be also basic blocks/code fragments
+extern map <string, string> NameToFunction;
+
+// The number of calls for each function
+extern map <string, int> FunctionToCount;
+
+class GlobalSymbol {
+    public:
+        GlobalSymbol():start(0),size(0){};
+        GlobalSymbol(ADDRINT st, ADDRINT sz):start(st),size(sz){};
+        ADDRINT start;
+        ADDRINT size;
+};
+
+extern map <string, GlobalSymbol*> globalSymbols;
+
+extern KNOB<BOOL> KnobBBFuncCount;
+extern KNOB<BOOL> KnobDotShowBytes;
+extern KNOB<BOOL> KnobDotShowUnDVs;
+extern KNOB<BOOL> KnobDotShowRanges;
+extern KNOB<BOOL> KnobElf;
+extern KNOB<int> KnobDotShowRangesLimit;
+
+
+#endif //__QUAD__H__

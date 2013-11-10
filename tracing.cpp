@@ -63,7 +63,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 
 #include "tracing.h"
-
+#include "QUAD.h"
 #include "Exception.h"
 #include "Q2XMLFile.h"
 #include "Channel.h"
