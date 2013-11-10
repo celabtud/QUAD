@@ -53,7 +53,7 @@ Either add these path variables to your `.bashrc` file in your `home` directory.
 
 Or add these paths to a source script. For this add the following lines (lets name file as sourceme) as:
 		
-	export PINHOME=/home/pin-2.12
+	export PINHOME=/home/pin-2.13-61206
 	export QUADHOME=/home/QUAD
 	export PATH=$(PATH):$(PINHOME)
 
