@@ -81,24 +81,30 @@ LIB_ROOTS :=
 
 # This section contains the build rules for all binaries that have special build rules.
 # See makefile.default.rules for the default build rules.
+SRCDIR=./src
 CPPSRCS=QUAD.cpp tracing.cpp Utility.cpp BBlock.cpp Exception.cpp RenewalFlags.cpp\
 	Channel.cpp  Q2XMLFile.cpp
-
 CPPOBJS = $(CPPSRCS:%.cpp=$(OBJDIR)%$(OBJ_SUFFIX))
+$(OBJDIR)%.o:$(SRCDIR)/%.cpp
+	$(CXX) $(TOOL_CXXFLAGS) $(COMP_OBJ)$@ $<
 
 XML_CXXFLAGS=-O3 -g -DTIXML_USE_TICPP -fPIC	
 TINYXMLSRCS = ticpp.cpp tinystr.cpp tinyxml.cpp tinyxmlerror.cpp tinyxmlparser.cpp
 TINYXMLOBJS = $(TINYXMLSRCS:%.cpp=$(OBJDIR)%.oo)
 
-$(OBJDIR)%.oo:%.cpp
+$(OBJDIR)%.oo:$(SRCDIR)/%.cpp
 	$(CXX) $(TOOL_CXXFLAGS) $(XML_CXXFLAGS) $(COMP_OBJ)$@ $<
 
 $(OBJDIR)QUAD$(PINTOOL_SUFFIX): $(CPPOBJS) $(TINYXMLOBJS)
 	$(LINKER) $(TOOL_LDFLAGS) $(LINK_EXE)$@ $^ $(TOOL_LPATHS) $(TOOL_LIBS)
 
-HEADERS=QUAD.h tracing.h Utility.h BBlock.h Channel.h Exception.h RenewalFlags.h\
-	Q2XMLFile.h ticpp.h ticpprc.h tinystr.h tinyxml.h 
-	
+# HEADERS=QUAD.h tracing.h Utility.h BBlock.h Channel.h Exception.h RenewalFlags.h Q2XMLFile.h ticpp.h ticpprc.h tinystr.h tinyxml.h
+INCDIR=./include
+HEADERS=$(INCDIR)/QUAD.h $(INCDIR)/tracing.h $(INCDIR)/Utility.h \
+	$(INCDIR)/BBlock.h $(INCDIR)/Channel.h $(INCDIR)/Exception.h \
+	$(INCDIR)/RenewalFlags.h $(INCDIR)/Q2XMLFile.h $(INCDIR)/ticpp.h \
+	$(INCDIR)/ticpprc.h $(INCDIR)/tinystr.h $(INCDIR)/tinyxml.h
+TOOL_CXXFLAGS+=-I$(INCDIR)
 $(OBJDIR)QUAD$(OBJ_SUFFIX): $(HEADERS)
 
 clean: cleantemp
