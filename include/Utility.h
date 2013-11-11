@@ -4,7 +4,7 @@
  * Author : Imran Ashraf
  *
  * This file contains prototypes of some utility functions.
- * 
+ *
  */
 
 #ifndef UTILITY_H

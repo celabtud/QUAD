@@ -15,19 +15,28 @@ using namespace std;
 class Exception
 {
 private:
-string m_reason;
-string m_file;
-int m_line;
+    string m_reason;
+    string m_file;
+    int m_line;
 public:
-Exception(string reason);
-Exception(string reason, string file, int line);
+    Exception(string reason);
+    Exception(string reason, string file, int line);
 
-virtual
-~Exception();
+    virtual
+    ~Exception();
 
-const string &Reason() { return m_reason; }
-const string &File() { return m_file; }
-const int &Line() { return m_line; }
+    const string &Reason()
+    {
+        return m_reason;
+    }
+    const string &File()
+    {
+        return m_file;
+    }
+    const int &Line()
+    {
+        return m_line;
+    }
 
 };
 

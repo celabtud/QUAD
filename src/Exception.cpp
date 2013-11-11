@@ -8,12 +8,12 @@
 #include "Exception.h"
 
 Exception::Exception(string reason)
-	:m_reason(reason),m_file(""),m_line(-1)
+    :m_reason(reason),m_file(""),m_line(-1)
 {
 }
 
 Exception::Exception(string reason, string file, int line)
-	:m_reason(reason),m_file(file),m_line(line)
+    :m_reason(reason),m_file(file),m_line(line)
 {
 }
 
