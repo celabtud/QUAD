@@ -137,6 +137,6 @@ extern KNOB<BOOL> KnobDotShowUnDVs;
 extern KNOB<BOOL> KnobDotShowRanges;
 extern KNOB<BOOL> KnobElf;
 extern KNOB<int> KnobDotShowRangesLimit;
-
+extern KNOB<BOOL> KnobByteGran_ON;
 
 #endif //__QUAD__H__

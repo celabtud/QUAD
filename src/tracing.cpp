@@ -494,7 +494,7 @@ int CreateDSGraphFile()
 }
 
 //------------------------------------------------------------------------------------------
-int RecordCommunicationInDSGraph(ADDRINT producer, ADDRINT consumer, ADDRINT locAddr, struct trieNode * currentLPold)
+int RecordCommunicationInDSGraph(ADDRINT producer, ADDRINT consumer, ADDRINT locAddr, struct trieNode * currentLPold, int size)
 {
     int currentLevel=0;
     Binding* tempptr;
@@ -568,25 +568,29 @@ int RecordCommunicationInDSGraph(ADDRINT producer, ADDRINT consumer, ADDRINT loc
     }
 
     tempptr=(Binding*) ( currentLP->list[addressArray[currentLevel]] );
-    tempptr->data_exchange=tempptr->data_exchange+1;
+    tempptr->data_exchange=tempptr->data_exchange + size;
 
     //make the status of this location as OLD by ClearFlag() for this consumer.
     //A true will be returned if this value is fresh and now it will be set to old
     //A false will be returned if this value is already old (read) and is being re-read
     if(currentLPold->RenewalFlags->ClearFlag(consumer))
-        tempptr->UniqueValues = tempptr->UniqueValues + 1;
+        tempptr->UniqueValues = tempptr->UniqueValues + size;
 
     // only needed for graph visualization coloring!
     if (tempptr->data_exchange > MaxLabel)
         MaxLabel=tempptr->data_exchange;
 
-    tempptr->UniqueMemCells->insert(locAddr);
+    for(int i=0;i<size;i++)
+    {
+        tempptr->UniqueMemCells->insert(locAddr);
+        locAddr=(ADDRINT)((char *)locAddr)+1;
+    }//end for
 
     //********* what to do if insertion is not successful, memory problems !!!!!!!!!!!!
     return 0; /* successful recording */
 }
 //------------------------------------------------------------------------------------------
-int RecordMemoryAccess(ADDRINT locAddr, ADDRINT func,bool writeFlag)
+int RecordMemoryAccess(ADDRINT locAddr, ADDRINT func,bool writeFlag, int size)
 {
     int currentLevel=0;
     int i,retv;
@@ -648,7 +652,7 @@ int RecordMemoryAccess(ADDRINT locAddr, ADDRINT func,bool writeFlag)
     else
     {
         /* producer , consumer , address used for making this binding! , location in the tree */
-        retv=RecordCommunicationInDSGraph(*((ADDRINT*) (currentLP->list[addressArray[currentLevel]]) ), func, locAddr, currentLP);
+        retv=RecordCommunicationInDSGraph(*((ADDRINT*) (currentLP->list[addressArray[currentLevel]]) ), func, locAddr, currentLP,size);
         //DS = Data Structure Graph
         if (retv) return 1; /* memory exhausted */
     }

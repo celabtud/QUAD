@@ -77,7 +77,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 int CreateDSGraphFile();
-int RecordMemoryAccess(ADDRINT locAddr, ADDRINT func,bool writeFlag);
+int RecordMemoryAccess(ADDRINT locAddr, ADDRINT func,bool writeFlag, int size);
 int CreateTotalStatFile();
 
 #endif //__TRACING__H__

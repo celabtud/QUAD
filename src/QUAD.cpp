@@ -203,6 +203,10 @@ KNOB<BOOL> KnobIncludeExternalImages(KNOB_MODE_WRITEONCE, "pintool",
 KNOB<BOOL> KnobVerbose_ON(KNOB_MODE_WRITEONCE, "pintool",
                           "verbose","0", "Print information on the console during application execution");
 
+KNOB<BOOL> KnobByteGran_ON(KNOB_MODE_WRITEONCE, "pintool",
+                          "bytegranularity","0", "Set to 1 to record memory accesses at individual byte granularity");
+
+
 /* ===================================================================== */
 
 
@@ -420,11 +424,18 @@ static VOID RecordMem(VOID * ip, VOID * ESP, CHAR r, VOID * addr, INT32 size, BO
             ADDtoName[GlobalfunctionNo]=ftnName;   // create the Number -> String binding
         }
 
-        for(int i=0; i<size; i++)
+        if ( KnobByteGran_ON.Value() == 0 )
         {
-            RecordMemoryAccess((ADDRINT)addr,NametoADD[ftnName],r=='W');
-            addr=((char *)addr)+1;  // cast not needed anyway!
-        }//end for
+            RecordMemoryAccess((ADDRINT)addr,NametoADD[ftnName],r=='W',size);
+        }
+        else
+        {
+            for(int i=0; i<size; i++)
+            {
+                RecordMemoryAccess((ADDRINT)addr,NametoADD[ftnName],r=='W',1);
+                addr=((char *)addr)+1;  // cast not needed anyway!
+            }//end for
+        }
     }// end of not a prefetch
 }
 
